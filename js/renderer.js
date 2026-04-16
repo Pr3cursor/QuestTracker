@@ -24,7 +24,7 @@ function buildBoardDOM() {
         dragHandle.title = 'Spalte verschieben';
 
         const h2 = document.createElement('h2');
-        h2.textContent = col.label;  // FIX: war vorher vergessen
+        h2.textContent = col.label;
         h2.title = 'Doppelklick zum Umbenennen';
         h2.style.cursor = 'pointer';
         h2.addEventListener('dblclick', () => renameColumn(col.id));
@@ -87,13 +87,13 @@ function buildBoardDOM() {
 
 // ── SortableJS ────────────────────────────────────────────────────────
 function initSortable(container) {
+    // FIX: kein 'handle' mehr — ganze Karte ist ziehbar.
+    // Buttons mit stopPropagation (edit, delete) bleiben klickbar
+    // weil SortableJS auf mousedown/touchstart reagiert, nicht auf click.
     document.querySelectorAll('.issue-list').forEach(list => {
         Sortable.create(list, {
             group:      'issues',
             animation:  150,
-            // FIX: handle auf .issue-header statt .issue-card
-            // .issue-card hatte stopPropagation auf Buttons — das blockierte den Drag
-            handle:     '.issue-header',
             ghostClass: 'sortable-ghost',
             dragClass:  'sortable-drag',
             onEnd(evt) {
