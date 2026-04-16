@@ -21,6 +21,7 @@
             </div>
         </div>
         <div class="header-right">
+            <button class="header-action-btn" id="labelManagerBtn" title="Labels verwalten">&#127991; Labels</button>
             <button class="header-action-btn" id="exportBtn" title="Board exportieren">&#8595; Export</button>
             <label class="header-action-btn" title="Board importieren" style="cursor:pointer">
                 &#8593; Import
@@ -66,7 +67,10 @@
         <div class="label-input-row" id="labelInputRow">
             <span class="label-input-hint">Labels:</span>
             <div class="label-chips" id="newIssueLabelChips"></div>
-            <input type="text" id="labelInput" placeholder="Label tippen + Enter" class="label-text-input">
+            <select id="newIssueLabelSelect" class="label-select">
+                <option value="">+ Label w&auml;hlen...</option>
+            </select>
+            <input type="text" id="labelInput" placeholder="Neues Label + Enter" class="label-text-input">
         </div>
         <button onclick="addIssue()">+ Issue hinzuf&uuml;gen</button>
     </div>
