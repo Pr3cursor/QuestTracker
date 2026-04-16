@@ -1,91 +1,207 @@
+/* ── Reset ─────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Design Tokens ─────────────────────────────────────────────────── */
+:root, [data-theme="light"] {
+    --bg:          #f0f2f5;
+    --bg-surface:  #ffffff;
+    --bg-input:    #f9fafb;
+    --border:      #cdd3db;
+    --border-soft: #dde1e7;
+    --text:        #1a1a2e;
+    --text-muted:  #555;
+    --text-faint:  #888;
+    --col-bg:      #ebedf0;
+    --col-border:  #ccc;
+    --shadow:      rgba(0,0,0,0.07);
+    --shadow-md:   rgba(0,0,0,0.13);
+    --btn-green:   #27ae60;
+    --btn-green-h: #219a52;
+    --btn-sec:     #e9edf2;
+    --btn-sec-h:   #dde4ec;
+    --btn-sec-c:   #2d3a4a;
+    --edit-bg:     #eef6ff;
+    --edit-c:      #206ba3;
+    --edit-bg-h:   #dceeff;
+    --del-hover:   #fdecea;
+    --link-c:      #2980b9;
+    --modal-bg:    #ffffff;
+    --modal-label: #4a5565;
+    --header-bg:   #1a1a2e;
+    --header-c:    #ffffff;
+    --focus:       rgba(52,152,219,0.15);
+    --focus-c:     #3498db;
+}
+
+[data-theme="dark"] {
+    --bg:          #0f1117;
+    --bg-surface:  #1c1f2a;
+    --bg-input:    #242837;
+    --border:      #3a3f52;
+    --border-soft: #2a2f40;
+    --text:        #e2e8f0;
+    --text-muted:  #94a3b8;
+    --text-faint:  #64748b;
+    --col-bg:      #1a1f2e;
+    --col-border:  #2a2f40;
+    --shadow:      rgba(0,0,0,0.3);
+    --shadow-md:   rgba(0,0,0,0.5);
+    --btn-green:   #22c55e;
+    --btn-green-h: #16a34a;
+    --btn-sec:     #2a2f40;
+    --btn-sec-h:   #353b52;
+    --btn-sec-c:   #e2e8f0;
+    --edit-bg:     #1e2d45;
+    --edit-c:      #60a5fa;
+    --edit-bg-h:   #243454;
+    --del-hover:   #2d1a1a;
+    --link-c:      #60a5fa;
+    --modal-bg:    #1c1f2a;
+    --modal-label: #94a3b8;
+    --header-bg:   #0f1117;
+    --header-c:    #e2e8f0;
+    --focus:       rgba(96,165,250,0.2);
+    --focus-c:     #60a5fa;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
 body {
     font-family: 'Segoe UI', Arial, sans-serif;
-    background: #f0f2f5;
-    color: #1a1a2e;
+    background: var(--bg);
+    color: var(--text);
     min-height: 100vh;
+    transition: background 0.25s, color 0.25s;
 }
 
 body.modal-open { overflow: hidden; }
 
-/* ---- Input Area ---- */
+/* ── App Header ─────────────────────────────────────────────────────── */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--header-bg);
+    color: var(--header-c);
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.app-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--header-c);
+}
+
+.theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.3rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.18s;
+    line-height: 1;
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.1); }
+
+/* ── Input Area ─────────────────────────────────────────────────────── */
 .input-area {
     display: flex;
     flex-direction: column;
     gap: 10px;
     padding: 16px 20px;
-    background: #fff;
-    border-bottom: 1px solid #dde1e7;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-soft);
     max-width: 520px;
     margin: 16px auto 0;
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: background 0.25s, border-color 0.25s;
 }
 
-.input-area input,
+.input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-picker {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 2px;
+    background: none;
+    flex-shrink: 0;
+}
+
+.input-area input[type="text"],
 .input-area textarea,
 .input-area select,
-.modal-body input,
+.modal-body input[type="text"],
 .modal-body textarea,
 .modal-body select {
     padding: 9px 12px;
     border-radius: 6px;
-    border: 1px solid #cdd3db;
+    border: 1px solid var(--border);
     font: inherit;
     font-size: 0.95rem;
-    background: #f9fafb;
-    transition: border-color 0.18s, box-shadow 0.18s;
+    background: var(--bg-input);
+    color: var(--text);
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.25s;
     resize: vertical;
     width: 100%;
 }
 
-.input-area input:focus,
+.input-area input[type="text"]:focus,
 .input-area textarea:focus,
 .input-area select:focus,
-.modal-body input:focus,
+.modal-body input[type="text"]:focus,
 .modal-body textarea:focus,
 .modal-body select:focus {
     outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52,152,219,0.15);
-    background: #fff;
+    border-color: var(--focus-c);
+    box-shadow: 0 0 0 3px var(--focus);
+    background: var(--bg-surface);
 }
 
-/* ---- Buttons ---- */
+/* ── Buttons ────────────────────────────────────────────────────────── */
 .input-area button,
 .primary-btn,
 .secondary-btn,
 .icon-btn,
 .edit-btn,
-.delete-btn {
+.delete-btn,
+.col-color-btn {
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font: inherit;
-    transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+    transition: background 0.18s, color 0.18s;
 }
 
-.input-area button,
+.input-area > button,
 .primary-btn {
     padding: 10px 18px;
-    background: #27ae60;
+    background: var(--btn-green);
     color: white;
     font-weight: 600;
     align-self: flex-start;
 }
-.input-area button:hover,
-.primary-btn:hover { background: #219a52; }
+.input-area > button:hover,
+.primary-btn:hover { background: var(--btn-green-h); }
 
 .secondary-btn {
     padding: 10px 18px;
-    background: #e9edf2;
-    color: #2d3a4a;
+    background: var(--btn-sec);
+    color: var(--btn-sec-c);
     font-weight: 600;
 }
-.secondary-btn:hover { background: #dde4ec; }
+.secondary-btn:hover { background: var(--btn-sec-h); }
 
-/* ---- Board ---- */
+/* ── Board ──────────────────────────────────────────────────────────── */
 .board {
     display: flex;
     gap: 16px;
@@ -97,44 +213,56 @@ body.modal-open { overflow: hidden; }
 .column {
     flex: 1;
     min-width: 260px;
-    background: #ebedf0;
+    background: var(--col-bg);
     border-radius: 10px;
     min-height: 70vh;
     padding: 12px;
+    transition: background 0.25s, border-top 0.25s;
 }
 
-.column h2 {
-    text-align: center;
-    color: #444;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border-bottom: 2px solid #ccc;
+.column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--col-border);
     padding-bottom: 10px;
     margin-bottom: 8px;
 }
 
-/* ---- Issue Card ---- */
+.column-header h2 {
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.col-color-btn {
+    background: none;
+    color: var(--text-faint);
+    font-size: 0.9rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+}
+.col-color-btn:hover { background: var(--btn-sec); color: var(--text); }
+
+/* ── Issue Card ─────────────────────────────────────────────────────── */
 .issue-card {
-    background: white;
     margin: 10px 0;
     padding: 12px 14px;
     border-radius: 8px;
+    border-left: 5px solid #6c63ff;
     cursor: grab;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 6px var(--shadow);
     user-select: none;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: box-shadow 0.18s, transform 0.12s;
+    transition: box-shadow 0.18s, transform 0.12s, background 0.25s;
 }
 .issue-card:active { cursor: grabbing; }
-.issue-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.13); transform: translateY(-1px); }
-
-.prio-1 { border-left: 5px solid #e74c3c; }
-.prio-2 { border-left: 5px solid #f1c40f; }
-.prio-3 { border-left: 5px solid #2ecc71; }
+.issue-card:hover  { box-shadow: 0 4px 14px var(--shadow-md); transform: translateY(-1px); }
 
 .issue-header {
     display: flex;
@@ -158,12 +286,18 @@ body.modal-open { overflow: hidden; }
     flex-shrink: 0;
 }
 
+.color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
 .issue-id {
     width: fit-content;
     font-size: 0.72rem;
     font-weight: 600;
-    color: #888;
-    background: #f0f2f5;
     padding: 2px 6px;
     border-radius: 4px;
     white-space: nowrap;
@@ -174,46 +308,39 @@ body.modal-open { overflow: hidden; }
     font-size: 0.97rem;
     font-weight: 600;
     line-height: 1.35;
-    color: #1a1a2e;
+    color: var(--text);
     word-break: break-word;
 }
 
 .edit-btn {
     padding: 5px 10px;
-    background: #eef6ff;
-    color: #206ba3;
+    background: var(--edit-bg);
+    color: var(--edit-c);
     font-size: 0.82rem;
     font-weight: 600;
 }
-.edit-btn:hover { background: #dceeff; }
+.edit-btn:hover { background: var(--edit-bg-h); }
 
-.delete-btn,
-.icon-btn {
+.delete-btn, .icon-btn {
     background: none;
-    color: #bbb;
+    color: var(--text-faint);
     padding: 5px 8px;
     line-height: 1;
     font-size: 1rem;
 }
-.delete-btn:hover,
-.icon-btn:hover { color: #e74c3c; background: #fdecea; }
+.delete-btn:hover, .icon-btn:hover { color: #e74c3c; background: var(--del-hover); }
 
 .issue-description {
     font-size: 0.875rem;
-    color: #555;
+    color: var(--text-muted);
     line-height: 1.5;
     white-space: pre-wrap;
 }
 
-.issue-links {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
+.issue-links { display: flex; flex-direction: column; gap: 4px; }
 .issue-links a {
     font-size: 0.82rem;
-    color: #2980b9;
+    color: var(--link-c);
     text-decoration: none;
     word-break: break-all;
     display: flex;
@@ -223,11 +350,11 @@ body.modal-open { overflow: hidden; }
 .issue-links a::before { content: '🔗'; font-size: 0.75rem; }
 .issue-links a:hover { text-decoration: underline; }
 
-/* ---- Modal ---- */
+/* ── Modal ──────────────────────────────────────────────────────────── */
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15,23,42,0.45);
+    background: rgba(0,0,0,0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -240,10 +367,11 @@ body.modal-open { overflow: hidden; }
     width: min(100%, 600px);
     max-height: 90vh;
     overflow-y: auto;
-    background: #ffffff;
+    background: var(--modal-bg);
     border-radius: 14px;
-    box-shadow: 0 18px 50px rgba(0,0,0,0.2);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
     padding: 22px;
+    transition: background 0.25s;
 }
 
 .modal-header {
@@ -253,22 +381,14 @@ body.modal-open { overflow: hidden; }
     gap: 16px;
     margin-bottom: 16px;
 }
+.modal-header h2 { font-size: 1.1rem; color: var(--text); }
 
-.modal-header h2 {
-    font-size: 1.1rem;
-    color: #1a1a2e;
-}
-
-.modal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
+.modal-body { display: flex; flex-direction: column; gap: 6px; }
 
 .modal-label {
     font-size: 0.83rem;
     font-weight: 700;
-    color: #4a5565;
+    color: var(--modal-label);
     margin-top: 8px;
 }
 
@@ -279,7 +399,7 @@ body.modal-open { overflow: hidden; }
     margin-top: 20px;
 }
 
-/* ---- Mobile ---- */
+/* ── Mobile ─────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
     .board { padding: 12px; gap: 10px; }
     .input-area { margin: 12px; }

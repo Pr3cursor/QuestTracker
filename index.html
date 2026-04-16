@@ -1,14 +1,25 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuestTracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+    <header class="app-header">
+        <span class="app-title">&#9876; QuestTracker</span>
+        <button id="themeToggleBtn" class="theme-toggle" aria-label="Dark Mode umschalten" title="Light/Dark Mode">
+            <span id="themeIcon">🌙</span>
+        </button>
+    </header>
+
     <div class="input-area">
-        <input type="text" id="taskInput" placeholder="Issue-Titel...">
+        <div class="input-row">
+            <input type="color" id="colorInput" value="#6c63ff" title="Issue-Farbe wählen" class="color-picker">
+            <input type="text" id="taskInput" placeholder="Issue-Titel..." style="flex:1">
+        </div>
         <textarea id="descriptionInput" placeholder="Beschreibung: Worum geht es genau?" rows="3"></textarea>
         <textarea id="linksInput" placeholder="URLs (eine pro Zeile)&#10;z. B. https://github.com/..." rows="2"></textarea>
         <select id="priorityInput">
@@ -21,22 +32,37 @@
 
     <div class="board">
         <div class="column" id="open" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <h2>Open</h2>
+            <div class="column-header" data-col="open">
+                <h2>Open</h2>
+                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('open')">&#127912;</button>
+            </div>
             <div class="issue-list"></div>
         </div>
         <div class="column" id="doing" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <h2>Doing</h2>
+            <div class="column-header" data-col="doing">
+                <h2>Doing</h2>
+                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('doing')">&#127912;</button>
+            </div>
             <div class="issue-list"></div>
         </div>
         <div class="column" id="review" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <h2>Review</h2>
+            <div class="column-header" data-col="review">
+                <h2>Review</h2>
+                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('review')">&#127912;</button>
+            </div>
             <div class="issue-list"></div>
         </div>
         <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <h2>Done</h2>
+            <div class="column-header" data-col="done">
+                <h2>Done</h2>
+                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('done')">&#127912;</button>
+            </div>
             <div class="issue-list"></div>
         </div>
     </div>
+
+    <!-- Hidden column color picker -->
+    <input type="color" id="colColorInput" style="position:fixed;opacity:0;pointer-events:none;width:0;height:0;" aria-hidden="true">
 
     <script src="script.js"></script>
 </body>
