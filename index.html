@@ -63,7 +63,6 @@
             </select>
         </div>
         <textarea id="linksInput" placeholder="URLs (eine pro Zeile)" rows="2"></textarea>
-        <!-- Label input -->
         <div class="label-input-row" id="labelInputRow">
             <span class="label-input-hint">Labels:</span>
             <div class="label-chips" id="newIssueLabelChips"></div>
@@ -84,6 +83,14 @@
     <div id="toast" class="toast hidden" role="alert" aria-live="polite"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+    <!-- Module laden: Reihenfolge = Abhängigkeitsreihenfolge -->
+    <script src="js/state.js"></script>
+    <script src="js/helpers.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/modals.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/renderer.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
