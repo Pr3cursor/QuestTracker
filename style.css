@@ -1,0 +1,22 @@
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; }
+.header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+.input-area { margin-top: 15px; }
+input, select, button { padding: 8px; border-radius: 4px; border: none; }
+button { background: #27ae60; color: white; cursor: pointer; font-weight: bold; }
+button:hover { background: #2ecc71; }
+
+.board { display: flex; gap: 15px; padding: 20px; overflow-x: auto; }
+.column { flex: 1; min-width: 250px; background: #ebedf0; border-radius: 8px; min-height: 80vh; padding: 10px; }
+.column h2 { text-align: center; color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+
+.issue-card { 
+    background: white; margin: 10px 0; padding: 15px; border-radius: 6px; 
+    cursor: grab; box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.prio-1 { border-left: 8px solid #e74c3c; }
+.prio-2 { border-left: 8px solid #f1c40f; }
+.prio-3 { border-left: 8px solid #2ecc71; }
+
+.delete-btn { background: #ff4757; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px; }

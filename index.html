@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Scrum Board Task Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="input-area">
+        <input type="text" id="taskInput" placeholder="Neue Aufgabe...">
+        <select id="priorityInput">
+            <option value="1">Hoch</option>
+            <option value="2" selected>Mittel</option>
+            <option value="3">Niedrig</option>
+        </select>
+        <button onclick="addIssue()">Hinzufügen</button>
+    </div>
+
+    <div class="board">
+        <div class="column" id="open" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Open</h2>
+            <div class="issue-list"></div>
+        </div>
+        <div class="column" id="doing" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Doing</h2>
+            <div class="issue-list"></div>
+        </div>
+        <div class="column" id="review" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Review</h2>
+            <div class="issue-list"></div>
+        </div>
+        <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Done</h2>
+            <div class="issue-list"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
