@@ -9,15 +9,27 @@
 <body>
 
     <header class="app-header">
-        <span class="app-title">&#9876; QuestTracker</span>
-        <button id="themeToggleBtn" class="theme-toggle" aria-label="Dark Mode umschalten" title="Light/Dark Mode">
-            <span id="themeIcon">🌙</span>
-        </button>
+        <div class="header-left">
+            <span class="app-title">&#9876; QuestTracker</span>
+        </div>
+        <div class="header-center">
+            <div class="board-switcher">
+                <select id="boardSelect" aria-label="Board wechseln"></select>
+                <button class="icon-btn" id="renameBoardBtn" title="Board umbenennen">&#9998;</button>
+                <button class="icon-btn" id="deleteBoardBtn" title="Board l&ouml;schen">&#128465;</button>
+                <button class="add-board-btn" id="addBoardBtn" title="Neues Board">+ Board</button>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="themeToggleBtn" class="theme-toggle" aria-label="Dark Mode umschalten" title="Light/Dark Mode">
+                <span id="themeIcon">&#127769;</span>
+            </button>
+        </div>
     </header>
 
     <div class="input-area">
         <div class="input-row">
-            <input type="color" id="colorInput" value="#6c63ff" title="Issue-Farbe wählen" class="color-picker">
+            <input type="color" id="colorInput" value="#6c63ff" title="Issue-Farbe w&auml;hlen" class="color-picker">
             <input type="text" id="taskInput" placeholder="Issue-Titel..." style="flex:1">
         </div>
         <textarea id="descriptionInput" placeholder="Beschreibung: Worum geht es genau?" rows="3"></textarea>
@@ -27,39 +39,10 @@
             <option value="2" selected>Mittel</option>
             <option value="3">Niedrig</option>
         </select>
-        <button onclick="addIssue()">+ Issue hinzufügen</button>
+        <button onclick="addIssue()">+ Issue hinzuf&uuml;gen</button>
     </div>
 
-    <div class="board">
-        <div class="column" id="open" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <div class="column-header" data-col="open">
-                <h2>Open</h2>
-                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('open')">&#127912;</button>
-            </div>
-            <div class="issue-list"></div>
-        </div>
-        <div class="column" id="doing" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <div class="column-header" data-col="doing">
-                <h2>Doing</h2>
-                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('doing')">&#127912;</button>
-            </div>
-            <div class="issue-list"></div>
-        </div>
-        <div class="column" id="review" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <div class="column-header" data-col="review">
-                <h2>Review</h2>
-                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('review')">&#127912;</button>
-            </div>
-            <div class="issue-list"></div>
-        </div>
-        <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
-            <div class="column-header" data-col="done">
-                <h2>Done</h2>
-                <button class="col-color-btn" title="Spaltenfarbe" onclick="openColColorPicker('done')">&#127912;</button>
-            </div>
-            <div class="issue-list"></div>
-        </div>
-    </div>
+    <div class="board" id="boardContainer"></div>
 
     <!-- Hidden column color picker -->
     <input type="color" id="colColorInput" style="position:fixed;opacity:0;pointer-events:none;width:0;height:0;" aria-hidden="true">

@@ -1,7 +1,7 @@
-/* ── Reset ─────────────────────────────────────────────────────────── */
+/* ── Reset ──────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Design Tokens ─────────────────────────────────────────────────── */
+/* ── Design Tokens ──────────────────────────────────────────────── */
 :root, [data-theme="light"] {
     --bg:          #f0f2f5;
     --bg-surface:  #ffffff;
@@ -31,6 +31,8 @@
     --header-c:    #ffffff;
     --focus:       rgba(52,152,219,0.15);
     --focus-c:     #3498db;
+    --switcher-bg: rgba(255,255,255,0.1);
+    --switcher-border: rgba(255,255,255,0.2);
 }
 
 [data-theme="dark"] {
@@ -62,9 +64,11 @@
     --header-c:    #e2e8f0;
     --focus:       rgba(96,165,250,0.2);
     --focus-c:     #60a5fa;
+    --switcher-bg: rgba(255,255,255,0.05);
+    --switcher-border: rgba(255,255,255,0.12);
 }
 
-/* ── Base ───────────────────────────────────────────────────────────── */
+/* ── Base ───────────────────────────────────────────────────────── */
 body {
     font-family: 'Segoe UI', Arial, sans-serif;
     background: var(--bg);
@@ -72,40 +76,96 @@ body {
     min-height: 100vh;
     transition: background 0.25s, color 0.25s;
 }
-
 body.modal-open { overflow: hidden; }
 
-/* ── App Header ─────────────────────────────────────────────────────── */
+/* ── App Header ─────────────────────────────────────────────────── */
 .app-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    padding: 12px 24px;
+    gap: 16px;
+    padding: 10px 20px;
     background: var(--header-bg);
     color: var(--header-c);
     box-shadow: 0 2px 8px var(--shadow);
 }
+.header-left  { display: flex; align-items: center; }
+.header-center { display: flex; justify-content: center; }
+.header-right { display: flex; align-items: center; justify-content: flex-end; }
 
 .app-title {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    color: var(--header-c);
+    white-space: nowrap;
 }
 
 .theme-toggle {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     padding: 4px 8px;
     border-radius: 6px;
-    transition: background 0.18s;
     line-height: 1;
+    transition: background 0.18s;
 }
 .theme-toggle:hover { background: rgba(255,255,255,0.1); }
 
-/* ── Input Area ─────────────────────────────────────────────────────── */
+/* ── Board Switcher ─────────────────────────────────────────────── */
+.board-switcher {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--switcher-bg);
+    border: 1px solid var(--switcher-border);
+    border-radius: 8px;
+    padding: 4px 10px;
+}
+
+.board-switcher select {
+    background: transparent;
+    border: none;
+    color: var(--header-c);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    max-width: 180px;
+    padding: 2px 4px;
+    outline: none;
+    appearance: auto;
+}
+
+.board-switcher .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255,255,255,0.65);
+    font-size: 0.95rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+}
+.board-switcher .icon-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.add-board-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s;
+}
+.add-board-btn:hover { background: rgba(255,255,255,0.22); }
+
+/* ── Input Area ─────────────────────────────────────────────────── */
 .input-area {
     display: flex;
     flex-direction: column;
@@ -119,12 +179,7 @@ body.modal-open { overflow: hidden; }
     box-shadow: 0 2px 8px var(--shadow);
     transition: background 0.25s, border-color 0.25s;
 }
-
-.input-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+.input-row { display: flex; align-items: center; gap: 8px; }
 
 .color-picker {
     width: 36px;
@@ -167,41 +222,33 @@ body.modal-open { overflow: hidden; }
     background: var(--bg-surface);
 }
 
-/* ── Buttons ────────────────────────────────────────────────────────── */
-.input-area button,
-.primary-btn,
-.secondary-btn,
-.icon-btn,
-.edit-btn,
-.delete-btn,
-.col-color-btn {
+/* ── Add Button ─────────────────────────────────────────────────── */
+.input-area > button,
+.primary-btn {
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font: inherit;
-    transition: background 0.18s, color 0.18s;
-}
-
-.input-area > button,
-.primary-btn {
     padding: 10px 18px;
     background: var(--btn-green);
     color: white;
     font-weight: 600;
     align-self: flex-start;
+    transition: background 0.18s;
 }
-.input-area > button:hover,
-.primary-btn:hover { background: var(--btn-green-h); }
+.input-area > button:hover, .primary-btn:hover { background: var(--btn-green-h); }
 
 .secondary-btn {
+    border: none; border-radius: 6px; cursor: pointer; font: inherit;
     padding: 10px 18px;
     background: var(--btn-sec);
     color: var(--btn-sec-c);
     font-weight: 600;
+    transition: background 0.18s;
 }
 .secondary-btn:hover { background: var(--btn-sec-h); }
 
-/* ── Board ──────────────────────────────────────────────────────────── */
+/* ── Board ──────────────────────────────────────────────────────── */
 .board {
     display: flex;
     gap: 16px;
@@ -210,6 +257,7 @@ body.modal-open { overflow: hidden; }
     align-items: flex-start;
 }
 
+/* ── Column ─────────────────────────────────────────────────────── */
 .column {
     flex: 1;
     min-width: 260px;
@@ -235,19 +283,26 @@ body.modal-open { overflow: hidden; }
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    user-select: none;
 }
 
+.col-header-btns { display: flex; align-items: center; gap: 4px; }
+
+.col-rename-btn,
 .col-color-btn {
     background: none;
+    border: none;
     color: var(--text-faint);
-    font-size: 0.9rem;
-    padding: 2px 6px;
+    font-size: 0.85rem;
+    padding: 2px 5px;
     border-radius: 4px;
+    cursor: pointer;
     line-height: 1;
+    transition: background 0.15s, color 0.15s;
 }
-.col-color-btn:hover { background: var(--btn-sec); color: var(--text); }
+.col-rename-btn:hover, .col-color-btn:hover { background: var(--btn-sec); color: var(--text); }
 
-/* ── Issue Card ─────────────────────────────────────────────────────── */
+/* ── Issue Card ─────────────────────────────────────────────────── */
 .issue-card {
     margin: 10px 0;
     padding: 12px 14px;
@@ -261,34 +316,15 @@ body.modal-open { overflow: hidden; }
     gap: 8px;
     transition: box-shadow 0.18s, transform 0.12s, background 0.25s;
 }
-.issue-card:active { cursor: grabbing; }
-.issue-card:hover  { box-shadow: 0 4px 14px var(--shadow-md); transform: translateY(-1px); }
+.issue-card:active  { cursor: grabbing; }
+.issue-card:hover   { box-shadow: 0 4px 14px var(--shadow-md); transform: translateY(-1px); }
 
-.issue-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-}
-
-.issue-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    flex: 1;
-}
-
-.issue-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-}
+.issue-header  { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.issue-meta    { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.issue-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 .color-dot {
-    width: 10px;
-    height: 10px;
+    width: 10px; height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
     display: inline-block;
@@ -296,8 +332,7 @@ body.modal-open { overflow: hidden; }
 
 .issue-id {
     width: fit-content;
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.72rem; font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
     white-space: nowrap;
@@ -305,28 +340,29 @@ body.modal-open { overflow: hidden; }
 }
 
 .issue-title {
-    font-size: 0.97rem;
-    font-weight: 600;
+    font-size: 0.97rem; font-weight: 600;
     line-height: 1.35;
     color: var(--text);
     word-break: break-word;
 }
 
 .edit-btn {
+    border: none; border-radius: 6px; cursor: pointer; font: inherit;
     padding: 5px 10px;
     background: var(--edit-bg);
     color: var(--edit-c);
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 0.82rem; font-weight: 600;
+    transition: background 0.18s;
 }
 .edit-btn:hover { background: var(--edit-bg-h); }
 
 .delete-btn, .icon-btn {
-    background: none;
+    background: none; border: none; cursor: pointer;
     color: var(--text-faint);
     padding: 5px 8px;
-    line-height: 1;
-    font-size: 1rem;
+    line-height: 1; font-size: 1rem;
+    border-radius: 6px;
+    transition: background 0.18s, color 0.18s;
 }
 .delete-btn:hover, .icon-btn:hover { color: #e74c3c; background: var(--del-hover); }
 
@@ -343,23 +379,16 @@ body.modal-open { overflow: hidden; }
     color: var(--link-c);
     text-decoration: none;
     word-break: break-all;
-    display: flex;
-    align-items: center;
-    gap: 4px;
 }
-.issue-links a::before { content: '🔗'; font-size: 0.75rem; }
+.issue-links a::before { content: '🔗'; font-size: 0.75rem; margin-right: 4px; }
 .issue-links a:hover { text-decoration: underline; }
 
-/* ── Modal ──────────────────────────────────────────────────────────── */
+/* ── Modal ──────────────────────────────────────────────────────── */
 .modal-overlay {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    z-index: 999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 999;
 }
 .modal-overlay.hidden { display: none; }
 
@@ -375,32 +404,19 @@ body.modal-open { overflow: hidden; }
 }
 
 .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; margin-bottom: 16px;
 }
 .modal-header h2 { font-size: 1.1rem; color: var(--text); }
-
 .modal-body { display: flex; flex-direction: column; gap: 6px; }
+.modal-label { font-size: 0.83rem; font-weight: 700; color: var(--modal-label); margin-top: 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
-.modal-label {
-    font-size: 0.83rem;
-    font-weight: 700;
-    color: var(--modal-label);
-    margin-top: 8px;
-}
-
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-/* ── Mobile ─────────────────────────────────────────────────────────── */
+/* ── Mobile ─────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
+    .app-header { grid-template-columns: 1fr; gap: 8px; padding: 10px 14px; }
+    .header-center { justify-content: flex-start; }
+    .board-switcher select { max-width: 130px; }
     .board { padding: 12px; gap: 10px; }
     .input-area { margin: 12px; }
     .issue-header { flex-direction: column; }
