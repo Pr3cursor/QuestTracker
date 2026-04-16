@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-//  QuestTracker — Multi-Board State
+//  QuestTracker — State
 // ═══════════════════════════════════════════════════════════════════
 
 const DEFAULT_COLUMNS = [
@@ -38,7 +38,9 @@ function loadState() {
         ...iss,
         id:     iss.id    || generateId(),
         color:  iss.color || '#6c63ff',
-        status: colMap[iss.status] || 'col-open'
+        status: colMap[iss.status] || 'col-open',
+        labels: iss.labels || [],
+        dueDate: iss.dueDate || null
     }));
     const s = { activeBoardId: defaultBoard.id, boards: [defaultBoard] };
     saveState(s);
@@ -51,6 +53,14 @@ let state = loadState();
 function activeBoard() {
     return state.boards.find(b => b.id === state.activeBoardId) || state.boards[0];
 }
+
+// active filter state
+let filterSearch   = '';
+let filterPriority = '';
+let filterLabel    = '';
+
+// labels being added to a new issue
+let newIssueLabels = [];
 
 // ═══════════════════════════════════════════════════════════════════
 //  Helpers
@@ -71,6 +81,32 @@ function parseLinks(raw) { return raw.split('\n').map(normalizeUrl).filter(Boole
 function hexToRgb(hex) {
     return [1,3,5].map(i => parseInt(hex.slice(i,i+2),16)).join(',');
 }
+function formatDate(iso) {
+    if (!iso) return null;
+    const [y,m,d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+}
+function isOverdue(iso) {
+    if (!iso) return false;
+    return new Date(iso) < new Date(new Date().toDateString());
+}
+function isDueSoon(iso) {
+    if (!iso) return false;
+    const diff = new Date(iso) - new Date(new Date().toDateString());
+    return diff >= 0 && diff <= 2 * 86400000;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Toast
+// ═══════════════════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, duration = 3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.add('hidden'), duration);
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  Theme
@@ -87,8 +123,71 @@ function applyTheme(theme) {
     if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
 }
 function toggleTheme() {
-    const cur = document.documentElement.getAttribute('data-theme');
-    applyTheme(cur === 'dark' ? 'light' : 'dark');
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Labels
+// ═══════════════════════════════════════════════════════════════════
+// Deterministic color from label string
+const LABEL_PALETTE = [
+    '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
+    '#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a'
+];
+function labelColor(text) {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+    return LABEL_PALETTE[h % LABEL_PALETTE.length];
+}
+
+function renderLabelChips(labels, container, onRemove) {
+    container.innerHTML = '';
+    labels.forEach(lbl => {
+        const chip = document.createElement('span');
+        chip.className = 'label-chip';
+        chip.style.background = labelColor(lbl) + '22';
+        chip.style.color = labelColor(lbl);
+        chip.style.borderColor = labelColor(lbl) + '55';
+        chip.textContent = lbl;
+        if (onRemove) {
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'label-chip-remove';
+            x.textContent = '×';
+            x.addEventListener('click', () => onRemove(lbl));
+            chip.appendChild(x);
+        }
+        container.appendChild(chip);
+    });
+}
+
+function getAllLabels() {
+    const set = new Set();
+    activeBoard().issues.forEach(i => (i.labels || []).forEach(l => set.add(l)));
+    return [...set].sort();
+}
+
+function rebuildLabelFilter() {
+    const sel = document.getElementById('filterLabel');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Alle Labels</option>';
+    getAllLabels().forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l; opt.textContent = l;
+        sel.appendChild(opt);
+    });
+    if (cur) sel.value = cur;
+}
+
+// New-issue label chips
+function addNewIssueLabel(raw) {
+    const lbl = raw.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!lbl || newIssueLabels.includes(lbl)) return;
+    newIssueLabels.push(lbl);
+    renderLabelChips(newIssueLabels, document.getElementById('newIssueLabelChips'), l => {
+        newIssueLabels = newIssueLabels.filter(x => x !== l);
+        renderLabelChips(newIssueLabels, document.getElementById('newIssueLabelChips'), arguments.callee);
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -99,8 +198,7 @@ function renderBoardSelect() {
     sel.innerHTML = '';
     state.boards.forEach(b => {
         const opt = document.createElement('option');
-        opt.value = b.id;
-        opt.textContent = b.name;
+        opt.value = b.id; opt.textContent = b.name;
         if (b.id === state.activeBoardId) opt.selected = true;
         sel.appendChild(opt);
     });
@@ -110,87 +208,97 @@ function addBoard() {
     const name = prompt('Name des neuen Boards:');
     if (!name || !name.trim()) return;
     const b = createBoard(name.trim());
-    state.boards.push(b);
-    state.activeBoardId = b.id;
-    saveState(state);
-    renderAll();
+    state.boards.push(b); state.activeBoardId = b.id;
+    saveState(state); renderAll();
 }
 function renameBoard() {
     const b = activeBoard();
     const name = prompt('Board umbenennen:', b.name);
     if (!name || !name.trim()) return;
-    b.name = name.trim();
-    saveState(state);
-    renderBoardSelect();
+    b.name = name.trim(); saveState(state); renderBoardSelect();
 }
 function deleteBoard() {
     if (state.boards.length === 1) { alert('Das letzte Board kann nicht gelöscht werden.'); return; }
     const b = activeBoard();
-    if (!confirm(`Board "${b.name}" wirklich löschen? Alle Issues gehen verloren.`)) return;
+    if (!confirm(`Board "${b.name}" wirklich löschen?`)) return;
     state.boards = state.boards.filter(x => x.id !== b.id);
     state.activeBoardId = state.boards[0].id;
-    saveState(state);
-    renderAll();
+    saveState(state); renderAll();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Column CRUD
+//  Export / Import
+// ═══════════════════════════════════════════════════════════════════
+function exportState() {
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `questtracker-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('📥 Board exportiert!');
+}
+
+function importState(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.boards || !Array.isArray(data.boards)) throw new Error();
+            if (!confirm(`Import wird den aktuellen Stand überschreiben. Fortfahren?`)) return;
+            state = data;
+            saveState(state);
+            renderAll();
+            showToast('📤 Board importiert!');
+        } catch {
+            alert('Ungültige Datei. Bitte eine gültige QuestTracker-JSON wählen.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Column CRUD + Reorder
 // ═══════════════════════════════════════════════════════════════════
 function addColumn() {
     const name = prompt('Name der neuen Spalte:');
     if (!name || !name.trim()) return;
-    const col = { id: generateColId(), label: name.trim(), color: null };
-    activeBoard().columns.push(col);
-    saveState(state);
-    renderAll();
+    activeBoard().columns.push({ id: generateColId(), label: name.trim(), color: null });
+    saveState(state); renderAll();
 }
-
 function deleteColumn(colId) {
     const board = activeBoard();
-    if (board.columns.length <= 1) {
-        alert('Mindestens eine Spalte muss übrig bleiben.');
-        return;
-    }
-    const col       = board.columns.find(c => c.id === colId);
-    const affected  = board.issues.filter(i => i.status === colId);
+    if (board.columns.length <= 1) { alert('Mindestens eine Spalte muss übrig bleiben.'); return; }
+    const col      = board.columns.find(c => c.id === colId);
+    const affected = board.issues.filter(i => i.status === colId);
     const remaining = board.columns.filter(c => c.id !== colId);
-
     if (affected.length > 0) {
-        // Build a list of remaining column options for the user
-        const opts = remaining.map((c, idx) => `${idx + 1}: ${c.label}`).join('\n');
-        const answer = prompt(
-            `Die Spalte „${col.label}“ enthält ${affected.length} Issue(s).
+        const opts   = remaining.map((c,i) => `${i+1}: ${c.label}`).join('\n');
+        const answer = prompt(`Die Spalte „${col.label}“ enthält ${affected.length} Issue(s).
 
 Wohin verschieben?
 ${opts}
 
-Nummer eingeben — oder leer lassen um Issues zu löschen:`,
-            '1'
-        );
-        if (answer === null) return; // cancelled
+Nummer — oder leer für löschen:`, '1');
+        if (answer === null) return;
         const idx = parseInt(answer, 10) - 1;
-        if (!isNaN(idx) && remaining[idx]) {
-            affected.forEach(i => { i.status = remaining[idx].id; });
-        } else {
-            // discard issues in this column
-            board.issues = board.issues.filter(i => i.status !== colId);
-        }
+        if (!isNaN(idx) && remaining[idx]) affected.forEach(i => { i.status = remaining[idx].id; });
+        else board.issues = board.issues.filter(i => i.status !== colId);
     } else {
         if (!confirm(`Spalte „${col.label}“ löschen?`)) return;
     }
-
     board.columns = remaining;
-    saveState(state);
-    renderAll();
+    saveState(state); renderAll();
 }
-
 function renameColumn(colId) {
     const col = activeBoard().columns.find(c => c.id === colId);
     if (!col) return;
     const name = prompt('Spalte umbenennen:', col.label);
     if (!name || !name.trim()) return;
-    col.label = name.trim();
-    saveState(state);
+    col.label = name.trim(); saveState(state);
     const h2 = document.querySelector(`[data-col="${colId}"] h2`);
     if (h2) h2.textContent = col.label;
     buildStatusOptions();
@@ -208,18 +316,13 @@ function applyColumnColors() {
     activeBoard().columns.forEach(col => {
         const el = document.getElementById(col.id);
         if (!el) return;
-        if (col.color) {
-            el.style.background = col.color + '22';
-            el.style.borderTop  = `3px solid ${col.color}`;
-        } else {
-            el.style.background = '';
-            el.style.borderTop  = '';
-        }
+        if (col.color) { el.style.background = col.color + '22'; el.style.borderTop = `3px solid ${col.color}`; }
+        else           { el.style.background = ''; el.style.borderTop = ''; }
     });
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Build Board DOM
+//  Build Board DOM + SortableJS
 // ═══════════════════════════════════════════════════════════════════
 function buildBoardDOM() {
     const container = document.getElementById('boardContainer');
@@ -227,89 +330,134 @@ function buildBoardDOM() {
 
     activeBoard().columns.forEach(col => {
         const colEl = document.createElement('div');
-        colEl.className = 'column';
-        colEl.id = col.id;
-        colEl.setAttribute('ondrop', 'drop(event)');
-        colEl.setAttribute('ondragover', 'allowDrop(event)');
+        colEl.className = 'column'; colEl.id = col.id;
 
         const header = document.createElement('div');
-        header.className = 'column-header';
-        header.dataset.col = col.id;
+        header.className = 'column-header'; header.dataset.col = col.id;
+
+        // drag handle for column reorder
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'col-drag-handle';
+        dragHandle.innerHTML = '&#8942;&#8942;';
+        dragHandle.title = 'Spalte verschieben';
 
         const h2 = document.createElement('h2');
-        h2.textContent = col.label;
-        h2.title = 'Doppelklick zum Umbenennen';
-        h2.style.cursor = 'pointer';
+        h2.title = 'Doppelklick zum Umbenennen'; h2.style.cursor = 'pointer';
         h2.addEventListener('dblclick', () => renameColumn(col.id));
+
+        const countBadge = document.createElement('span');
+        countBadge.className = 'col-count'; countBadge.dataset.colCount = col.id;
 
         const headerBtns = document.createElement('div');
         headerBtns.className = 'col-header-btns';
 
         const renameBtn = document.createElement('button');
-        renameBtn.className = 'col-rename-btn';
-        renameBtn.innerHTML = '&#9998;';
-        renameBtn.title = 'Umbenennen';
+        renameBtn.className = 'col-rename-btn'; renameBtn.innerHTML = '&#9998;'; renameBtn.title = 'Umbenennen';
         renameBtn.addEventListener('click', () => renameColumn(col.id));
 
         const colorBtn = document.createElement('button');
-        colorBtn.className = 'col-color-btn';
-        colorBtn.innerHTML = '&#127912;';
-        colorBtn.title = 'Spaltenfarbe';
+        colorBtn.className = 'col-color-btn'; colorBtn.innerHTML = '&#127912;'; colorBtn.title = 'Spaltenfarbe';
         colorBtn.addEventListener('click', () => openColColorPicker(col.id));
 
         const delColBtn = document.createElement('button');
-        delColBtn.className = 'col-delete-btn';
-        delColBtn.innerHTML = '&#10006;';
-        delColBtn.title = 'Spalte löschen';
+        delColBtn.className = 'col-delete-btn'; delColBtn.innerHTML = '&#10006;'; delColBtn.title = 'Spalte löschen';
         delColBtn.addEventListener('click', () => deleteColumn(col.id));
 
-        headerBtns.appendChild(renameBtn);
-        headerBtns.appendChild(colorBtn);
-        headerBtns.appendChild(delColBtn);
-        header.appendChild(h2);
-        header.appendChild(headerBtns);
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'col-title-wrap';
+        titleWrap.appendChild(dragHandle);
+        titleWrap.appendChild(h2);
+        titleWrap.appendChild(countBadge);
+
+        headerBtns.append(renameBtn, colorBtn, delColBtn);
+        header.append(titleWrap, headerBtns);
 
         const issueList = document.createElement('div');
-        issueList.className = 'issue-list';
+        issueList.className = 'issue-list'; issueList.dataset.colId = col.id;
 
-        colEl.appendChild(header);
-        colEl.appendChild(issueList);
+        const emptyState = document.createElement('div');
+        emptyState.className = 'col-empty'; emptyState.dataset.colEmpty = col.id;
+        emptyState.innerHTML = '<span>&#128203;</span><p>Keine Issues hier.<br>Hinziehen oder neu erstellen.</p>';
+
+        colEl.append(header, issueList, emptyState);
         container.appendChild(colEl);
     });
 
-    // ─ "+ Spalte" button appended after all columns
+    // + Spalte button
     const addColBtn = document.createElement('button');
-    addColBtn.className = 'add-col-btn';
-    addColBtn.innerHTML = '&#43; Spalte';
-    addColBtn.title = 'Neue Spalte hinzufügen';
+    addColBtn.className = 'add-col-btn'; addColBtn.innerHTML = '&#43; Spalte';
     addColBtn.addEventListener('click', addColumn);
     container.appendChild(addColBtn);
+
+    // SortableJS: issues within & between columns
+    document.querySelectorAll('.issue-list').forEach(list => {
+        Sortable.create(list, {
+            group: 'issues',
+            animation: 150,
+            handle: '.issue-card',
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd(evt) {
+                const id    = evt.item.dataset.id;
+                const toCol = evt.to.dataset.colId;
+                const board = activeBoard();
+                const issue = board.issues.find(i => i.id === id);
+                if (!issue) return;
+                // update status
+                issue.status = toCol;
+                // update order: collect all visible card ids per column
+                document.querySelectorAll('.issue-list').forEach(l => {
+                    const cid = l.dataset.colId;
+                    [...l.querySelectorAll('.issue-card')].forEach((card, idx) => {
+                        const iss = board.issues.find(i => i.id === card.dataset.id);
+                        if (iss) iss.sortOrder = idx;
+                    });
+                });
+                saveState(state);
+                updateCountBadges();
+                updateEmptyStates();
+            }
+        });
+    });
+
+    // SortableJS: column reorder
+    Sortable.create(container, {
+        animation: 150,
+        handle: '.col-drag-handle',
+        filter: '.add-col-btn',
+        ghostClass: 'sortable-ghost',
+        onEnd() {
+            const board = activeBoard();
+            const newOrder = [...container.querySelectorAll('.column')].map(el => el.id);
+            board.columns = newOrder.map(id => board.columns.find(c => c.id === id)).filter(Boolean);
+            saveState(state);
+            buildStatusOptions();
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  Edit Modal
 // ═══════════════════════════════════════════════════════════════════
 let currentEditIssueId = null;
+let editModalLabels    = [];
 
 function buildStatusOptions() {
     const sel = document.getElementById('editStatusInput');
     if (!sel) return;
-    const curVal = sel.value;
-    sel.innerHTML = '';
+    const cur = sel.value; sel.innerHTML = '';
     activeBoard().columns.forEach(col => {
         const opt = document.createElement('option');
-        opt.value = col.id;
-        opt.textContent = col.label;
+        opt.value = col.id; opt.textContent = col.label;
         sel.appendChild(opt);
     });
-    if ([...sel.options].some(o => o.value === curVal)) sel.value = curVal;
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
 }
 
 function buildEditModal() {
     if (document.getElementById('editModalOverlay')) return;
     const overlay = document.createElement('div');
-    overlay.id = 'editModalOverlay';
-    overlay.className = 'modal-overlay hidden';
+    overlay.id = 'editModalOverlay'; overlay.className = 'modal-overlay hidden';
     overlay.innerHTML = `
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
             <div class="modal-header">
@@ -324,14 +472,27 @@ function buildEditModal() {
                 </div>
                 <label class="modal-label" for="editDescriptionInput">Beschreibung</label>
                 <textarea id="editDescriptionInput" rows="4" placeholder="Worum geht es genau?"></textarea>
+                <label class="modal-label">Labels</label>
+                <div class="label-input-row">
+                    <div class="label-chips" id="editLabelChips"></div>
+                    <input type="text" id="editLabelInput" placeholder="Label tippen + Enter" class="label-text-input">
+                </div>
                 <label class="modal-label" for="editLinksInput">URLs</label>
                 <textarea id="editLinksInput" rows="3" placeholder="Eine URL pro Zeile"></textarea>
-                <label class="modal-label" for="editPriorityInput">Priorität</label>
-                <select id="editPriorityInput">
-                    <option value="1">Hoch</option>
-                    <option value="2">Mittel</option>
-                    <option value="3">Niedrig</option>
-                </select>
+                <div class="input-row" style="gap:12px;margin-top:4px">
+                    <div style="flex:1">
+                        <label class="modal-label" for="editDueDateInput">Fälligkeitsdatum</label>
+                        <input type="date" id="editDueDateInput" style="width:100%">
+                    </div>
+                    <div style="flex:1">
+                        <label class="modal-label" for="editPriorityInput">Priorität</label>
+                        <select id="editPriorityInput">
+                            <option value="1">🔴 Hoch</option>
+                            <option value="2">🟠 Mittel</option>
+                            <option value="3">🟢 Niedrig</option>
+                        </select>
+                    </div>
+                </div>
                 <label class="modal-label" for="editStatusInput">Status</label>
                 <select id="editStatusInput"></select>
             </div>
@@ -345,13 +506,36 @@ function buildEditModal() {
     document.getElementById('closeEditModalBtn').addEventListener('click', closeEditModal);
     document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
     document.getElementById('saveEditBtn').addEventListener('click', saveIssueEdits);
+
+    document.getElementById('editLabelInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = e.target.value.trim();
+            if (val) {
+                const lbl = val.toLowerCase().replace(/\s+/g, '-');
+                if (!editModalLabels.includes(lbl)) {
+                    editModalLabels.push(lbl);
+                    refreshEditLabelChips();
+                }
+                e.target.value = '';
+            }
+        }
+    });
     buildStatusOptions();
+}
+
+function refreshEditLabelChips() {
+    renderLabelChips(editModalLabels, document.getElementById('editLabelChips'), lbl => {
+        editModalLabels = editModalLabels.filter(x => x !== lbl);
+        refreshEditLabelChips();
+    });
 }
 
 function openEditModal(id) {
     const issue = activeBoard().issues.find(i => i.id === id);
     if (!issue) return;
     currentEditIssueId = id;
+    editModalLabels    = [...(issue.labels || [])];
     buildStatusOptions();
     document.getElementById('editTitleInput').value       = issue.title;
     document.getElementById('editDescriptionInput').value = issue.description || '';
@@ -359,6 +543,9 @@ function openEditModal(id) {
     document.getElementById('editPriorityInput').value    = String(issue.priority);
     document.getElementById('editStatusInput').value      = issue.status;
     document.getElementById('editColorInput').value       = issue.color || '#6c63ff';
+    document.getElementById('editDueDateInput').value     = issue.dueDate || '';
+    document.getElementById('editLabelInput').value       = '';
+    refreshEditLabelChips();
     const overlay = document.getElementById('editModalOverlay');
     overlay.classList.remove('hidden');
     document.body.classList.add('modal-open');
@@ -376,8 +563,7 @@ function closeEditModal() {
 
 function saveIssueEdits() {
     if (!currentEditIssueId) return;
-    const board = activeBoard();
-    const issue = board.issues.find(i => i.id === currentEditIssueId);
+    const issue = activeBoard().issues.find(i => i.id === currentEditIssueId);
     if (!issue) return;
     const title = document.getElementById('editTitleInput').value.trim();
     if (!title) { document.getElementById('editTitleInput').focus(); return; }
@@ -387,18 +573,53 @@ function saveIssueEdits() {
     issue.priority    = document.getElementById('editPriorityInput').value;
     issue.status      = document.getElementById('editStatusInput').value;
     issue.color       = document.getElementById('editColorInput').value;
-    saveState(state);
-    closeEditModal();
-    renderIssues();
+    issue.dueDate     = document.getElementById('editDueDateInput').value || null;
+    issue.labels      = [...editModalLabels];
+    saveState(state); closeEditModal(); renderIssues(); rebuildLabelFilter();
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  Render Issues
 // ═══════════════════════════════════════════════════════════════════
+function getFilteredIssues() {
+    return activeBoard().issues.filter(issue => {
+        if (filterPriority && String(issue.priority) !== filterPriority) return false;
+        if (filterLabel    && !(issue.labels || []).includes(filterLabel))  return false;
+        if (filterSearch) {
+            const q = filterSearch.toLowerCase();
+            const haystack = [issue.title, issue.description, issue.id, ...(issue.labels||[])].join(' ').toLowerCase();
+            if (!haystack.includes(q)) return false;
+        }
+        return true;
+    });
+}
+
+function updateCountBadges() {
+    const all = activeBoard().issues;
+    activeBoard().columns.forEach(col => {
+        const el = document.querySelector(`[data-col-count="${col.id}"]`);
+        if (el) el.textContent = all.filter(i => i.status === col.id).length;
+    });
+}
+
+function updateEmptyStates() {
+    activeBoard().columns.forEach(col => {
+        const list  = document.querySelector(`[data-col-id="${col.id}"]`);
+        const empty = document.querySelector(`[data-col-empty="${col.id}"]`);
+        if (!list || !empty) return;
+        empty.style.display = list.children.length === 0 ? 'flex' : 'none';
+    });
+}
+
 function renderIssues() {
     document.querySelectorAll('.issue-list').forEach(l => { l.innerHTML = ''; });
-    const board  = activeBoard();
-    const sorted = [...board.issues].sort((a,b) => a.priority - b.priority);
+    const board   = activeBoard();
+    const visible = getFilteredIssues();
+    const sorted  = [...visible].sort((a,b) => {
+        const oa = a.sortOrder ?? 9999, ob = b.sortOrder ?? 9999;
+        if (oa !== ob) return oa - ob;
+        return a.priority - b.priority;
+    });
 
     sorted.forEach(issue => {
         const color = issue.color || '#6c63ff';
@@ -406,59 +627,60 @@ function renderIssues() {
 
         const card = document.createElement('div');
         card.className = `issue-card prio-${issue.priority}`;
-        card.draggable = true;
+        card.draggable = false; // SortableJS handles drag
         card.dataset.id = issue.id;
         card.style.borderLeftColor = color;
         card.style.background = `rgba(${rgb},0.06)`;
 
         const header = document.createElement('div');
         header.className = 'issue-header';
-        const meta = document.createElement('div');
-        meta.className = 'issue-meta';
+        const meta = document.createElement('div'); meta.className = 'issue-meta';
         const idBadge = document.createElement('span');
         idBadge.className = 'issue-id';
         idBadge.textContent = issue.id;
         idBadge.style.background = `rgba(${rgb},0.15)`;
         idBadge.style.color = color;
         const titleEl = document.createElement('h3');
-        titleEl.className = 'issue-title';
-        titleEl.textContent = issue.title;
-        meta.appendChild(idBadge);
-        meta.appendChild(titleEl);
+        titleEl.className = 'issue-title'; titleEl.textContent = issue.title;
+        meta.append(idBadge, titleEl);
 
-        const actions = document.createElement('div');
-        actions.className = 'issue-actions';
-        const colorDot = document.createElement('span');
-        colorDot.className = 'color-dot';
-        colorDot.style.background = color;
+        const actions = document.createElement('div'); actions.className = 'issue-actions';
         const editBtn = document.createElement('button');
-        editBtn.type = 'button';
-        editBtn.className = 'edit-btn';
-        editBtn.textContent = 'Bearbeiten';
+        editBtn.type = 'button'; editBtn.className = 'edit-btn'; editBtn.textContent = 'Bearbeiten';
         editBtn.setAttribute('aria-label', `Issue ${issue.id} bearbeiten`);
         editBtn.onclick = e => { e.stopPropagation(); openEditModal(issue.id); };
         const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'delete-btn';
-        delBtn.textContent = '✕';
+        delBtn.type = 'button'; delBtn.className = 'delete-btn'; delBtn.textContent = '✕';
         delBtn.setAttribute('aria-label', `Issue ${issue.id} löschen`);
         delBtn.onclick = e => { e.stopPropagation(); deleteIssue(issue.id); };
-        actions.appendChild(colorDot);
-        actions.appendChild(editBtn);
-        actions.appendChild(delBtn);
-        header.appendChild(meta);
-        header.appendChild(actions);
+        actions.append(editBtn, delBtn);
+        header.append(meta, actions);
         card.appendChild(header);
+
+        // Labels row
+        if (issue.labels && issue.labels.length > 0) {
+            const lrow = document.createElement('div'); lrow.className = 'issue-label-row';
+            renderLabelChips(issue.labels, lrow, null);
+            card.appendChild(lrow);
+        }
+
+        // Due date
+        if (issue.dueDate) {
+            const due = document.createElement('div');
+            due.className = 'issue-due';
+            if (isOverdue(issue.dueDate))      due.classList.add('overdue');
+            else if (isDueSoon(issue.dueDate)) due.classList.add('due-soon');
+            due.textContent = '📅 ' + formatDate(issue.dueDate);
+            card.appendChild(due);
+        }
 
         if (issue.description) {
             const desc = document.createElement('p');
-            desc.className = 'issue-description';
-            desc.textContent = issue.description;
+            desc.className = 'issue-description'; desc.textContent = issue.description;
             card.appendChild(desc);
         }
         if (issue.links && issue.links.length > 0) {
-            const lc = document.createElement('div');
-            lc.className = 'issue-links';
+            const lc = document.createElement('div'); lc.className = 'issue-links';
             issue.links.forEach(url => {
                 const a = document.createElement('a');
                 a.href = url; a.textContent = url;
@@ -468,10 +690,13 @@ function renderIssues() {
             card.appendChild(lc);
         }
 
-        card.ondragstart = e => e.dataTransfer.setData('text', issue.id);
-        const target = document.querySelector(`#${issue.status} .issue-list`);
+        const target = document.querySelector(`[data-col-id="${issue.status}"]`);
         if (target) target.appendChild(card);
     });
+
+    updateCountBadges();
+    updateEmptyStates();
+    rebuildLabelFilter();
 }
 
 function renderAll() {
@@ -491,6 +716,7 @@ function addIssue() {
     const linksInput    = document.getElementById('linksInput');
     const priorityInput = document.getElementById('priorityInput');
     const colorInput    = document.getElementById('colorInput');
+    const dueDateInput  = document.getElementById('dueDateInput');
     const title = titleInput.value.trim();
     if (!title) { titleInput.focus(); return; }
     const firstCol = activeBoard().columns[0];
@@ -501,33 +727,23 @@ function addIssue() {
         links:       parseLinks(linksInput.value),
         priority:    priorityInput.value,
         status:      firstCol.id,
-        color:       colorInput.value
+        color:       colorInput.value,
+        dueDate:     dueDateInput.value || null,
+        labels:      [...newIssueLabels],
+        sortOrder:   activeBoard().issues.filter(i => i.status === firstCol.id).length
     });
     titleInput.value = ''; descInput.value = ''; linksInput.value = '';
-    priorityInput.value = '2'; colorInput.value = '#6c63ff';
+    priorityInput.value = '2'; colorInput.value = '#6c63ff'; dueDateInput.value = '';
+    newIssueLabels = [];
+    renderLabelChips([], document.getElementById('newIssueLabelChips'), null);
     titleInput.focus();
-    saveState(state);
-    renderIssues();
+    saveState(state); renderIssues(); rebuildLabelFilter();
 }
 
 function deleteIssue(id) {
     activeBoard().issues = activeBoard().issues.filter(i => i.id !== id);
-    saveState(state);
-    renderIssues();
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  Drag & Drop
-// ═══════════════════════════════════════════════════════════════════
-function allowDrop(ev) { ev.preventDefault(); }
-function drop(ev) {
-    ev.preventDefault();
-    const id = ev.dataTransfer.getData('text');
-    let target = ev.target;
-    while (target && !target.classList.contains('column')) target = target.parentElement;
-    if (!target) return;
-    const issue = activeBoard().issues.find(i => i.id === id);
-    if (issue) { issue.status = target.id; saveState(state); renderIssues(); }
+    saveState(state); renderIssues();
+    showToast('🗑️ Issue gelöscht');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -543,8 +759,42 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addBoardBtn').addEventListener('click', addBoard);
     document.getElementById('renameBoardBtn').addEventListener('click', renameBoard);
     document.getElementById('deleteBoardBtn').addEventListener('click', deleteBoard);
+    document.getElementById('exportBtn').addEventListener('click', exportState);
+    document.getElementById('importFile').addEventListener('change', e => {
+        importState(e.target.files[0]);
+        e.target.value = '';
+    });
+
     document.getElementById('taskInput').addEventListener('keydown', e => { if (e.key === 'Enter') addIssue(); });
 
+    // Label input for new issues
+    document.getElementById('labelInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addNewIssueLabel(e.target.value);
+            e.target.value = '';
+        }
+    });
+
+    // Search & Filter
+    document.getElementById('searchInput').addEventListener('input', e => {
+        filterSearch = e.target.value; renderIssues();
+    });
+    document.getElementById('filterPriority').addEventListener('change', e => {
+        filterPriority = e.target.value; renderIssues();
+    });
+    document.getElementById('filterLabel').addEventListener('change', e => {
+        filterLabel = e.target.value; renderIssues();
+    });
+    document.getElementById('clearFilterBtn').addEventListener('click', () => {
+        filterSearch = ''; filterPriority = ''; filterLabel = '';
+        document.getElementById('searchInput').value = '';
+        document.getElementById('filterPriority').value = '';
+        document.getElementById('filterLabel').value = '';
+        renderIssues();
+    });
+
+    // Column color picker
     const colPicker = document.getElementById('colColorInput');
     colPicker.addEventListener('input', () => {
         if (!pendingColColorTarget) return;
@@ -553,10 +803,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     colPicker.addEventListener('change', () => { pendingColColorTarget = null; });
 
+    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
         const overlay = document.getElementById('editModalOverlay');
-        if (!overlay || overlay.classList.contains('hidden')) return;
-        if (e.key === 'Escape') closeEditModal();
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveIssueEdits();
+        const modalOpen = overlay && !overlay.classList.contains('hidden');
+        const tag = document.activeElement.tagName;
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+        if (modalOpen) {
+            if (e.key === 'Escape') closeEditModal();
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveIssueEdits();
+            return;
+        }
+        // N → focus new issue title
+        if (e.key === 'n' && !isInput) {
+            e.preventDefault();
+            document.getElementById('taskInput').focus();
+        }
+        // / → focus search
+        if (e.key === '/' && !isInput) {
+            e.preventDefault();
+            document.getElementById('searchInput').focus();
+        }
+        // Escape → clear search focus
+        if (e.key === 'Escape' && isInput) {
+            document.activeElement.blur();
+        }
     });
 });

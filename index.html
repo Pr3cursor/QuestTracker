@@ -17,28 +17,57 @@
                 <select id="boardSelect" aria-label="Board wechseln"></select>
                 <button class="icon-btn" id="renameBoardBtn" title="Board umbenennen">&#9998;</button>
                 <button class="icon-btn" id="deleteBoardBtn" title="Board l&ouml;schen">&#128465;</button>
-                <button class="add-board-btn" id="addBoardBtn" title="Neues Board">+ Board</button>
+                <button class="add-board-btn" id="addBoardBtn">+ Board</button>
             </div>
         </div>
         <div class="header-right">
+            <button class="header-action-btn" id="exportBtn" title="Board exportieren">&#8595; Export</button>
+            <label class="header-action-btn" title="Board importieren" style="cursor:pointer">
+                &#8593; Import
+                <input type="file" id="importFile" accept=".json" style="display:none">
+            </label>
             <button id="themeToggleBtn" class="theme-toggle" aria-label="Dark Mode umschalten" title="Light/Dark Mode">
                 <span id="themeIcon">&#127769;</span>
             </button>
         </div>
     </header>
 
-    <div class="input-area">
+    <!-- Search & Filter Bar -->
+    <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="&#128269; Suche... (oder N dr&uuml;cken)" aria-label="Issues durchsuchen">
+        <select id="filterPriority" aria-label="Nach Priorit&auml;t filtern">
+            <option value="">Alle Priorit&auml;ten</option>
+            <option value="1">&#128308; Hoch</option>
+            <option value="2">&#128992; Mittel</option>
+            <option value="3">&#128994; Niedrig</option>
+        </select>
+        <select id="filterLabel" aria-label="Nach Label filtern">
+            <option value="">Alle Labels</option>
+        </select>
+        <button id="clearFilterBtn" class="clear-filter-btn" title="Filter zur&uuml;cksetzen">&#10005; Reset</button>
+    </div>
+
+    <div class="input-area" id="inputArea">
         <div class="input-row">
             <input type="color" id="colorInput" value="#6c63ff" title="Issue-Farbe w&auml;hlen" class="color-picker">
-            <input type="text" id="taskInput" placeholder="Issue-Titel..." style="flex:1">
+            <input type="text" id="taskInput" placeholder="Issue-Titel... (Enter zum Hinzuf&uuml;gen)" style="flex:1">
         </div>
-        <textarea id="descriptionInput" placeholder="Beschreibung: Worum geht es genau?" rows="3"></textarea>
-        <textarea id="linksInput" placeholder="URLs (eine pro Zeile)&#10;z. B. https://github.com/..." rows="2"></textarea>
-        <select id="priorityInput">
-            <option value="1">Hoch</option>
-            <option value="2" selected>Mittel</option>
-            <option value="3">Niedrig</option>
-        </select>
+        <textarea id="descriptionInput" placeholder="Beschreibung: Worum geht es genau?" rows="2"></textarea>
+        <div class="input-row">
+            <input type="date" id="dueDateInput" title="F&auml;lligkeitsdatum" style="flex:1">
+            <select id="priorityInput" style="flex:1">
+                <option value="1">&#128308; Hoch</option>
+                <option value="2" selected>&#128992; Mittel</option>
+                <option value="3">&#128994; Niedrig</option>
+            </select>
+        </div>
+        <textarea id="linksInput" placeholder="URLs (eine pro Zeile)" rows="2"></textarea>
+        <!-- Label input -->
+        <div class="label-input-row" id="labelInputRow">
+            <span class="label-input-hint">Labels:</span>
+            <div class="label-chips" id="newIssueLabelChips"></div>
+            <input type="text" id="labelInput" placeholder="Label tippen + Enter" class="label-text-input">
+        </div>
         <button onclick="addIssue()">+ Issue hinzuf&uuml;gen</button>
     </div>
 
@@ -47,6 +76,10 @@
     <!-- Hidden column color picker -->
     <input type="color" id="colColorInput" style="position:fixed;opacity:0;pointer-events:none;width:0;height:0;" aria-hidden="true">
 
+    <!-- Toast -->
+    <div id="toast" class="toast hidden" role="alert" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
