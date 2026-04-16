@@ -2,19 +2,21 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Scrum Board Task Tracker</title>
+    <title>QuestTracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="input-area">
-        <input type="text" id="taskInput" placeholder="Neue Aufgabe...">
+        <input type="text" id="taskInput" placeholder="Issue-Titel...">
+        <textarea id="descriptionInput" placeholder="Beschreibung: Worum geht es genau?" rows="3"></textarea>
+        <textarea id="linksInput" placeholder="URLs (eine pro Zeile)&#10;z. B. https://github.com/..." rows="2"></textarea>
         <select id="priorityInput">
             <option value="1">Hoch</option>
             <option value="2" selected>Mittel</option>
             <option value="3">Niedrig</option>
         </select>
-        <button onclick="addIssue()">Hinzufügen</button>
+        <button onclick="addIssue()">+ Issue hinzufügen</button>
     </div>
 
     <div class="board">

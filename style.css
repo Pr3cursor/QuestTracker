@@ -1,22 +1,168 @@
-body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; }
-.header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
-.input-area { margin-top: 15px; }
-input, select, button { padding: 8px; border-radius: 4px; border: none; }
-button { background: #27ae60; color: white; cursor: pointer; font-weight: bold; }
-button:hover { background: #2ecc71; }
+/* ---- Reset & Base ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
 
-.board { display: flex; gap: 15px; padding: 20px; overflow-x: auto; }
-.column { flex: 1; min-width: 250px; background: #ebedf0; border-radius: 8px; min-height: 80vh; padding: 10px; }
-.column h2 { text-align: center; color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
-
-.issue-card { 
-    background: white; margin: 10px 0; padding: 15px; border-radius: 6px; 
-    cursor: grab; box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
+/* ---- Input Area ---- */
+.input-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+    background: #fff;
+    border-bottom: 1px solid #dde1e7;
+    max-width: 520px;
+    margin: 16px auto 0;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
 }
-.prio-1 { border-left: 8px solid #e74c3c; }
-.prio-2 { border-left: 8px solid #f1c40f; }
-.prio-3 { border-left: 8px solid #2ecc71; }
 
-.delete-btn { background: #ff4757; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px; }
+.input-area input,
+.input-area textarea,
+.input-area select {
+    padding: 9px 12px;
+    border-radius: 6px;
+    border: 1px solid #cdd3db;
+    font: inherit;
+    font-size: 0.95rem;
+    background: #f9fafb;
+    transition: border-color 0.18s, box-shadow 0.18s;
+    resize: vertical;
+}
+
+.input-area input:focus,
+.input-area textarea:focus,
+.input-area select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    background: #fff;
+}
+
+.input-area button {
+    padding: 10px 18px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.18s;
+    align-self: flex-start;
+}
+.input-area button:hover { background: #219a52; }
+
+/* ---- Board ---- */
+.board { display: flex; gap: 16px; padding: 20px; overflow-x: auto; align-items: flex-start; }
+
+.column {
+    flex: 1;
+    min-width: 260px;
+    background: #ebedf0;
+    border-radius: 10px;
+    min-height: 70vh;
+    padding: 12px;
+    transition: background 0.15s;
+}
+.column.drag-over { background: #d6e4f7; }
+
+.column h2 {
+    text-align: center;
+    color: #444;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 2px solid #ccc;
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+}
+
+/* ---- Issue Card ---- */
+.issue-card {
+    background: white;
+    margin: 10px 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    cursor: grab;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.18s, transform 0.12s;
+}
+.issue-card:active { cursor: grabbing; }
+.issue-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.13); transform: translateY(-1px); }
+
+/* Priority border */
+.prio-1 { border-left: 5px solid #e74c3c; }
+.prio-2 { border-left: 5px solid #f1c40f; }
+.prio-3 { border-left: 5px solid #2ecc71; }
+
+/* ---- Card Header ---- */
+.issue-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.issue-id {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #888;
+    background: #f0f2f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    margin-top: 2px;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+
+.issue-title {
+    flex: 1;
+    font-size: 0.97rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #1a1a2e;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: #bbb;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+}
+.delete-btn:hover { color: #e74c3c; background: #fdecea; }
+
+/* ---- Card Body ---- */
+.issue-description {
+    font-size: 0.875rem;
+    color: #555;
+    line-height: 1.5;
+}
+
+.issue-links {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.issue-links a {
+    font-size: 0.82rem;
+    color: #2980b9;
+    text-decoration: none;
+    word-break: break-all;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.issue-links a::before { content: '🔗'; font-size: 0.75rem; }
+.issue-links a:hover { text-decoration: underline; }
