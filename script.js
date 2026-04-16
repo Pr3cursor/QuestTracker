@@ -26,34 +26,28 @@ function loadState() {
             if (data.boards && data.boards.length > 0) return data;
         } catch {}
     }
-    // First run or migration from old format
-    const oldIssues = JSON.parse(localStorage.getItem('scrum-issues') || '[]');
+    const oldIssues    = JSON.parse(localStorage.getItem('scrum-issues')    || '[]');
     const oldColColors = JSON.parse(localStorage.getItem('scrum-col-colors') || '{}');
     const colMap = { open: 'col-open', doing: 'col-doing', review: 'col-review', done: 'col-done' };
     const defaultBoard = createBoard('Main Board');
-    // Migrate old column colors
     defaultBoard.columns.forEach(col => {
         const oldKey = Object.keys(colMap).find(k => colMap[k] === col.id);
         if (oldKey && oldColColors[oldKey]) col.color = oldColColors[oldKey];
     });
-    // Migrate old issues — remap status ids
     defaultBoard.issues = oldIssues.map(iss => ({
         ...iss,
-        id:     iss.id     || generateId(),
-        color:  iss.color  || '#6c63ff',
+        id:     iss.id    || generateId(),
+        color:  iss.color || '#6c63ff',
         status: colMap[iss.status] || 'col-open'
     }));
-    const state = { activeBoardId: defaultBoard.id, boards: [defaultBoard] };
-    saveState(state);
-    return state;
+    const s = { activeBoardId: defaultBoard.id, boards: [defaultBoard] };
+    saveState(s);
+    return s;
 }
 
-function saveState(s) {
-    localStorage.setItem('qt-boards', JSON.stringify(s));
-}
+function saveState(s) { localStorage.setItem('qt-boards', JSON.stringify(s)); }
 
 let state = loadState();
-
 function activeBoard() {
     return state.boards.find(b => b.id === state.activeBoardId) || state.boards[0];
 }
@@ -63,6 +57,9 @@ function activeBoard() {
 // ═══════════════════════════════════════════════════════════════════
 function generateId() {
     return 'QST-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
+}
+function generateColId() {
+    return 'col-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,4);
 }
 function normalizeUrl(url) {
     const t = url.trim();
@@ -108,13 +105,7 @@ function renderBoardSelect() {
         sel.appendChild(opt);
     });
 }
-
-function switchBoard(id) {
-    state.activeBoardId = id;
-    saveState(state);
-    renderAll();
-}
-
+function switchBoard(id) { state.activeBoardId = id; saveState(state); renderAll(); }
 function addBoard() {
     const name = prompt('Name des neuen Boards:');
     if (!name || !name.trim()) return;
@@ -124,7 +115,6 @@ function addBoard() {
     saveState(state);
     renderAll();
 }
-
 function renameBoard() {
     const b = activeBoard();
     const name = prompt('Board umbenennen:', b.name);
@@ -133,7 +123,6 @@ function renameBoard() {
     saveState(state);
     renderBoardSelect();
 }
-
 function deleteBoard() {
     if (state.boards.length === 1) { alert('Das letzte Board kann nicht gelöscht werden.'); return; }
     const b = activeBoard();
@@ -145,8 +134,56 @@ function deleteBoard() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Column rename (inline double-click)
+//  Column CRUD
 // ═══════════════════════════════════════════════════════════════════
+function addColumn() {
+    const name = prompt('Name der neuen Spalte:');
+    if (!name || !name.trim()) return;
+    const col = { id: generateColId(), label: name.trim(), color: null };
+    activeBoard().columns.push(col);
+    saveState(state);
+    renderAll();
+}
+
+function deleteColumn(colId) {
+    const board = activeBoard();
+    if (board.columns.length <= 1) {
+        alert('Mindestens eine Spalte muss übrig bleiben.');
+        return;
+    }
+    const col       = board.columns.find(c => c.id === colId);
+    const affected  = board.issues.filter(i => i.status === colId);
+    const remaining = board.columns.filter(c => c.id !== colId);
+
+    if (affected.length > 0) {
+        // Build a list of remaining column options for the user
+        const opts = remaining.map((c, idx) => `${idx + 1}: ${c.label}`).join('\n');
+        const answer = prompt(
+            `Die Spalte „${col.label}“ enthält ${affected.length} Issue(s).
+
+Wohin verschieben?
+${opts}
+
+Nummer eingeben — oder leer lassen um Issues zu löschen:`,
+            '1'
+        );
+        if (answer === null) return; // cancelled
+        const idx = parseInt(answer, 10) - 1;
+        if (!isNaN(idx) && remaining[idx]) {
+            affected.forEach(i => { i.status = remaining[idx].id; });
+        } else {
+            // discard issues in this column
+            board.issues = board.issues.filter(i => i.status !== colId);
+        }
+    } else {
+        if (!confirm(`Spalte „${col.label}“ löschen?`)) return;
+    }
+
+    board.columns = remaining;
+    saveState(state);
+    renderAll();
+}
+
 function renameColumn(colId) {
     const col = activeBoard().columns.find(c => c.id === colId);
     if (!col) return;
@@ -154,15 +191,12 @@ function renameColumn(colId) {
     if (!name || !name.trim()) return;
     col.label = name.trim();
     saveState(state);
-    // Update label text in DOM only (no full re-render to preserve drag state)
     const h2 = document.querySelector(`[data-col="${colId}"] h2`);
     if (h2) h2.textContent = col.label;
-    // Also update status options in edit modal
     buildStatusOptions();
 }
 
 let pendingColColorTarget = null;
-
 function openColColorPicker(colId) {
     pendingColColorTarget = colId;
     const col = activeBoard().columns.find(c => c.id === colId);
@@ -170,7 +204,6 @@ function openColColorPicker(colId) {
     picker.value = (col && col.color) || '#6c63ff';
     picker.click();
 }
-
 function applyColumnColors() {
     activeBoard().columns.forEach(col => {
         const el = document.getElementById(col.id);
@@ -191,6 +224,7 @@ function applyColumnColors() {
 function buildBoardDOM() {
     const container = document.getElementById('boardContainer');
     container.innerHTML = '';
+
     activeBoard().columns.forEach(col => {
         const colEl = document.createElement('div');
         colEl.className = 'column';
@@ -223,8 +257,15 @@ function buildBoardDOM() {
         colorBtn.title = 'Spaltenfarbe';
         colorBtn.addEventListener('click', () => openColColorPicker(col.id));
 
+        const delColBtn = document.createElement('button');
+        delColBtn.className = 'col-delete-btn';
+        delColBtn.innerHTML = '&#10006;';
+        delColBtn.title = 'Spalte löschen';
+        delColBtn.addEventListener('click', () => deleteColumn(col.id));
+
         headerBtns.appendChild(renameBtn);
         headerBtns.appendChild(colorBtn);
+        headerBtns.appendChild(delColBtn);
         header.appendChild(h2);
         header.appendChild(headerBtns);
 
@@ -235,6 +276,14 @@ function buildBoardDOM() {
         colEl.appendChild(issueList);
         container.appendChild(colEl);
     });
+
+    // ─ "+ Spalte" button appended after all columns
+    const addColBtn = document.createElement('button');
+    addColBtn.className = 'add-col-btn';
+    addColBtn.innerHTML = '&#43; Spalte';
+    addColBtn.title = 'Neue Spalte hinzufügen';
+    addColBtn.addEventListener('click', addColumn);
+    container.appendChild(addColBtn);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -344,7 +393,7 @@ function saveIssueEdits() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Render Issues (no DOM rebuild)
+//  Render Issues
 // ═══════════════════════════════════════════════════════════════════
 function renderIssues() {
     document.querySelectorAll('.issue-list').forEach(l => { l.innerHTML = ''; });
@@ -364,44 +413,36 @@ function renderIssues() {
 
         const header = document.createElement('div');
         header.className = 'issue-header';
-
         const meta = document.createElement('div');
         meta.className = 'issue-meta';
-
         const idBadge = document.createElement('span');
         idBadge.className = 'issue-id';
         idBadge.textContent = issue.id;
         idBadge.style.background = `rgba(${rgb},0.15)`;
         idBadge.style.color = color;
-
         const titleEl = document.createElement('h3');
         titleEl.className = 'issue-title';
         titleEl.textContent = issue.title;
-
         meta.appendChild(idBadge);
         meta.appendChild(titleEl);
 
         const actions = document.createElement('div');
         actions.className = 'issue-actions';
-
         const colorDot = document.createElement('span');
         colorDot.className = 'color-dot';
         colorDot.style.background = color;
-
         const editBtn = document.createElement('button');
         editBtn.type = 'button';
         editBtn.className = 'edit-btn';
         editBtn.textContent = 'Bearbeiten';
         editBtn.setAttribute('aria-label', `Issue ${issue.id} bearbeiten`);
         editBtn.onclick = e => { e.stopPropagation(); openEditModal(issue.id); };
-
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.className = 'delete-btn';
         delBtn.textContent = '✕';
         delBtn.setAttribute('aria-label', `Issue ${issue.id} löschen`);
         delBtn.onclick = e => { e.stopPropagation(); deleteIssue(issue.id); };
-
         actions.appendChild(colorDot);
         actions.appendChild(editBtn);
         actions.appendChild(delBtn);
@@ -415,7 +456,6 @@ function renderIssues() {
             desc.textContent = issue.description;
             card.appendChild(desc);
         }
-
         if (issue.links && issue.links.length > 0) {
             const lc = document.createElement('div');
             lc.className = 'issue-links';
@@ -434,7 +474,6 @@ function renderIssues() {
     });
 }
 
-// Full re-render (board switch, board create/delete)
 function renderAll() {
     renderBoardSelect();
     buildBoardDOM();
@@ -454,7 +493,6 @@ function addIssue() {
     const colorInput    = document.getElementById('colorInput');
     const title = titleInput.value.trim();
     if (!title) { titleInput.focus(); return; }
-
     const firstCol = activeBoard().columns[0];
     activeBoard().issues.push({
         id:          generateId(),
@@ -465,12 +503,8 @@ function addIssue() {
         status:      firstCol.id,
         color:       colorInput.value
     });
-
-    titleInput.value = '';
-    descInput.value  = '';
-    linksInput.value = '';
-    priorityInput.value = '2';
-    colorInput.value = '#6c63ff';
+    titleInput.value = ''; descInput.value = ''; linksInput.value = '';
+    priorityInput.value = '2'; colorInput.value = '#6c63ff';
     titleInput.focus();
     saveState(state);
     renderIssues();
