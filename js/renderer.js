@@ -87,15 +87,15 @@ function buildBoardDOM() {
 
 // ── SortableJS ────────────────────────────────────────────────────────
 function initSortable(container) {
-    // FIX: kein 'handle' mehr — ganze Karte ist ziehbar.
-    // Buttons mit stopPropagation (edit, delete) bleiben klickbar
-    // weil SortableJS auf mousedown/touchstart reagiert, nicht auf click.
     document.querySelectorAll('.issue-list').forEach(list => {
         Sortable.create(list, {
-            group:      'issues',
-            animation:  150,
-            ghostClass: 'sortable-ghost',
-            dragClass:  'sortable-drag',
+            group:             'issues',
+            animation:         120,
+            swapThreshold:     0.5,   // Snap ab Kartenmitte — fühlt sich sofort an
+            fallbackTolerance: 3,     // Drag startet nach 3px Mausbewegung
+            delay:             0,     // Kein künstlicher Delay
+            ghostClass:        'sortable-ghost',
+            dragClass:         'sortable-drag',
             onEnd(evt) {
                 const id    = evt.item.dataset.id;
                 const toCol = evt.to.dataset.colId;
