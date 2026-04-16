@@ -14,7 +14,8 @@ function createBoard(name) {
         id: 'board-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,5),
         name,
         columns: JSON.parse(JSON.stringify(DEFAULT_COLUMNS)),
-        issues: []
+        issues: [],
+        globalLabels: []   // board-level label definitions
     };
 }
 
@@ -23,7 +24,10 @@ function loadState() {
     if (raw) {
         try {
             const data = JSON.parse(raw);
-            if (data.boards && data.boards.length > 0) return data;
+            if (data.boards && data.boards.length > 0) {
+                data.boards.forEach(b => { if (!b.globalLabels) b.globalLabels = []; });
+                return data;
+            }
         } catch {}
     }
     const oldIssues    = JSON.parse(localStorage.getItem('scrum-issues')    || '[]');
@@ -54,12 +58,9 @@ function activeBoard() {
     return state.boards.find(b => b.id === state.activeBoardId) || state.boards[0];
 }
 
-// active filter state
 let filterSearch   = '';
 let filterPriority = '';
 let filterLabel    = '';
-
-// labels being added to a new issue
 let newIssueLabels = [];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -127,9 +128,8 @@ function toggleTheme() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Labels
+//  Global Label Manager
 // ═══════════════════════════════════════════════════════════════════
-// Deterministic color from label string
 const LABEL_PALETTE = [
     '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
     '#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a'
@@ -140,6 +140,152 @@ function labelColor(text) {
     return LABEL_PALETTE[h % LABEL_PALETTE.length];
 }
 
+// Returns merged list: globalLabels + any orphan issue-labels
+function getAllLabels() {
+    const board = activeBoard();
+    const global = board.globalLabels || [];
+    const fromIssues = new Set();
+    board.issues.forEach(i => (i.labels || []).forEach(l => fromIssues.add(l)));
+    const merged = [...global];
+    fromIssues.forEach(l => { if (!merged.includes(l)) merged.push(l); });
+    return merged.sort();
+}
+
+// ── Label Manager Modal ────────────────────────────────────────────
+function buildLabelManagerModal() {
+    if (document.getElementById('labelManagerOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'labelManagerOverlay';
+    overlay.className = 'modal-overlay hidden';
+    overlay.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="labelManagerTitle" style="max-width:420px">
+            <div class="modal-header">
+                <h2 id="labelManagerTitle">🏷️ Label-Manager</h2>
+                <button type="button" class="icon-btn" id="closeLabelManagerBtn" aria-label="Schließen">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="lm-create-row">
+                    <input type="text" id="lmNewLabelInput" placeholder="Neues Label..." style="flex:1">
+                    <button type="button" class="primary-btn lm-add-btn" id="lmAddBtn">+ Hinzufügen</button>
+                </div>
+                <div id="lmLabelList" class="lm-label-list"></div>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeLabelManager(); });
+    document.getElementById('closeLabelManagerBtn').addEventListener('click', closeLabelManager);
+    document.getElementById('lmAddBtn').addEventListener('click', lmAddLabel);
+    document.getElementById('lmNewLabelInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); lmAddLabel(); }
+    });
+}
+
+function openLabelManager() {
+    buildLabelManagerModal();
+    renderLabelManagerList();
+    document.getElementById('labelManagerOverlay').classList.remove('hidden');
+    document.body.classList.add('modal-open');
+    document.getElementById('lmNewLabelInput').focus();
+}
+function closeLabelManager() {
+    document.getElementById('labelManagerOverlay').classList.add('hidden');
+    document.body.classList.remove('modal-open');
+    rebuildLabelDropdowns();
+    rebuildLabelFilter();
+}
+
+function lmAddLabel() {
+    const input = document.getElementById('lmNewLabelInput');
+    const raw = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!raw) return;
+    const board = activeBoard();
+    if (!board.globalLabels) board.globalLabels = [];
+    if (board.globalLabels.includes(raw)) { showToast('Label existiert bereits.'); return; }
+    board.globalLabels.push(raw);
+    saveState(state);
+    input.value = '';
+    input.focus();
+    renderLabelManagerList();
+    showToast(`🏷️ Label "${raw}" erstellt`);
+}
+
+function lmDeleteLabel(lbl) {
+    const board = activeBoard();
+    board.globalLabels = (board.globalLabels || []).filter(l => l !== lbl);
+    board.issues.forEach(i => { i.labels = (i.labels || []).filter(l => l !== lbl); });
+    saveState(state);
+    renderLabelManagerList();
+    renderIssues();
+    rebuildLabelFilter();
+    showToast(`🗑️ Label "${lbl}" gelöscht`);
+}
+
+function renderLabelManagerList() {
+    const list = document.getElementById('lmLabelList');
+    if (!list) return;
+    const labels = getAllLabels();
+    if (labels.length === 0) {
+        list.innerHTML = '<p class="lm-empty">Noch keine Labels. Erstelle dein erstes!</p>';
+        return;
+    }
+    list.innerHTML = '';
+    labels.forEach(lbl => {
+        const row = document.createElement('div');
+        row.className = 'lm-label-row';
+        const chip = document.createElement('span');
+        chip.className = 'label-chip';
+        chip.style.background = labelColor(lbl) + '22';
+        chip.style.color = labelColor(lbl);
+        chip.style.borderColor = labelColor(lbl) + '55';
+        chip.textContent = lbl;
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'lm-delete-btn';
+        delBtn.innerHTML = '🗑️';
+        delBtn.title = `Label "${lbl}" löschen`;
+        delBtn.addEventListener('click', () => lmDeleteLabel(lbl));
+        row.append(chip, delBtn);
+        list.appendChild(row);
+    });
+}
+
+// ── Label Dropdown (in forms) ──────────────────────────────────────
+function buildLabelDropdown(selectId, activeLabels, onToggle) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">+ Label auswählen...</option>';
+    getAllLabels().forEach(lbl => {
+        const opt = document.createElement('option');
+        opt.value = lbl;
+        opt.textContent = (activeLabels.includes(lbl) ? '✓ ' : '') + lbl;
+        sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+        const val = sel.value;
+        if (!val) return;
+        onToggle(val);
+        sel.value = '';
+    };
+}
+
+function rebuildLabelDropdowns() {
+    buildLabelDropdown('newIssueLabelSelect', newIssueLabels, lbl => {
+        newIssueLabels = newIssueLabels.includes(lbl)
+            ? newIssueLabels.filter(x => x !== lbl)
+            : [...newIssueLabels, lbl];
+        renderNewIssueLabelChips();
+        rebuildLabelDropdowns();
+    });
+    buildLabelDropdown('editLabelSelect', editModalLabels, lbl => {
+        editModalLabels = editModalLabels.includes(lbl)
+            ? editModalLabels.filter(x => x !== lbl)
+            : [...editModalLabels, lbl];
+        refreshEditLabelChips();
+        rebuildLabelDropdowns();
+    });
+}
+
+// ── Render label chips helpers ─────────────────────────────────────
 function renderLabelChips(labels, container, onRemove) {
     container.innerHTML = '';
     labels.forEach(lbl => {
@@ -161,10 +307,12 @@ function renderLabelChips(labels, container, onRemove) {
     });
 }
 
-function getAllLabels() {
-    const set = new Set();
-    activeBoard().issues.forEach(i => (i.labels || []).forEach(l => set.add(l)));
-    return [...set].sort();
+function renderNewIssueLabelChips() {
+    renderLabelChips(newIssueLabels, document.getElementById('newIssueLabelChips'), lbl => {
+        newIssueLabels = newIssueLabels.filter(x => x !== lbl);
+        renderNewIssueLabelChips();
+        rebuildLabelDropdowns();
+    });
 }
 
 function rebuildLabelFilter() {
@@ -179,15 +327,16 @@ function rebuildLabelFilter() {
     if (cur) sel.value = cur;
 }
 
-// New-issue label chips
+// Legacy: add label by typing + Enter in new-issue form
 function addNewIssueLabel(raw) {
     const lbl = raw.trim().toLowerCase().replace(/\s+/g, '-');
     if (!lbl || newIssueLabels.includes(lbl)) return;
+    const board = activeBoard();
+    if (!board.globalLabels) board.globalLabels = [];
+    if (!board.globalLabels.includes(lbl)) { board.globalLabels.push(lbl); saveState(state); }
     newIssueLabels.push(lbl);
-    renderLabelChips(newIssueLabels, document.getElementById('newIssueLabelChips'), l => {
-        newIssueLabels = newIssueLabels.filter(x => x !== l);
-        renderLabelChips(newIssueLabels, document.getElementById('newIssueLabelChips'), arguments.callee);
-    });
+    renderNewIssueLabelChips();
+    rebuildLabelDropdowns();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -249,6 +398,7 @@ function importState(file) {
             const data = JSON.parse(e.target.result);
             if (!data.boards || !Array.isArray(data.boards)) throw new Error();
             if (!confirm(`Import wird den aktuellen Stand überschreiben. Fortfahren?`)) return;
+            data.boards.forEach(b => { if (!b.globalLabels) b.globalLabels = []; });
             state = data;
             saveState(state);
             renderAll();
@@ -277,18 +427,13 @@ function deleteColumn(colId) {
     const remaining = board.columns.filter(c => c.id !== colId);
     if (affected.length > 0) {
         const opts   = remaining.map((c,i) => `${i+1}: ${c.label}`).join('\n');
-        const answer = prompt(`Die Spalte „${col.label}“ enthält ${affected.length} Issue(s).
-
-Wohin verschieben?
-${opts}
-
-Nummer — oder leer für löschen:`, '1');
+        const answer = prompt(`Die Spalte „${col.label}" enthält ${affected.length} Issue(s).\n\nWohin verschieben?\n${opts}\n\nNummer — oder leer für löschen:`, '1');
         if (answer === null) return;
         const idx = parseInt(answer, 10) - 1;
         if (!isNaN(idx) && remaining[idx]) affected.forEach(i => { i.status = remaining[idx].id; });
         else board.issues = board.issues.filter(i => i.status !== colId);
     } else {
-        if (!confirm(`Spalte „${col.label}“ löschen?`)) return;
+        if (!confirm(`Spalte „${col.label}" löschen?`)) return;
     }
     board.columns = remaining;
     saveState(state); renderAll();
@@ -335,7 +480,6 @@ function buildBoardDOM() {
         const header = document.createElement('div');
         header.className = 'column-header'; header.dataset.col = col.id;
 
-        // drag handle for column reorder
         const dragHandle = document.createElement('span');
         dragHandle.className = 'col-drag-handle';
         dragHandle.innerHTML = '&#8942;&#8942;';
@@ -383,13 +527,11 @@ function buildBoardDOM() {
         container.appendChild(colEl);
     });
 
-    // + Spalte button
     const addColBtn = document.createElement('button');
     addColBtn.className = 'add-col-btn'; addColBtn.innerHTML = '&#43; Spalte';
     addColBtn.addEventListener('click', addColumn);
     container.appendChild(addColBtn);
 
-    // SortableJS: issues within & between columns
     document.querySelectorAll('.issue-list').forEach(list => {
         Sortable.create(list, {
             group: 'issues',
@@ -403,11 +545,8 @@ function buildBoardDOM() {
                 const board = activeBoard();
                 const issue = board.issues.find(i => i.id === id);
                 if (!issue) return;
-                // update status
                 issue.status = toCol;
-                // update order: collect all visible card ids per column
                 document.querySelectorAll('.issue-list').forEach(l => {
-                    const cid = l.dataset.colId;
                     [...l.querySelectorAll('.issue-card')].forEach((card, idx) => {
                         const iss = board.issues.find(i => i.id === card.dataset.id);
                         if (iss) iss.sortOrder = idx;
@@ -420,7 +559,6 @@ function buildBoardDOM() {
         });
     });
 
-    // SortableJS: column reorder
     Sortable.create(container, {
         animation: 150,
         handle: '.col-drag-handle',
@@ -475,7 +613,8 @@ function buildEditModal() {
                 <label class="modal-label">Labels</label>
                 <div class="label-input-row">
                     <div class="label-chips" id="editLabelChips"></div>
-                    <input type="text" id="editLabelInput" placeholder="Label tippen + Enter" class="label-text-input">
+                    <select id="editLabelSelect" class="label-select"></select>
+                    <input type="text" id="editLabelInput" placeholder="Neu tippen + Enter" class="label-text-input">
                 </div>
                 <label class="modal-label" for="editLinksInput">URLs</label>
                 <textarea id="editLinksInput" rows="3" placeholder="Eine URL pro Zeile"></textarea>
@@ -513,10 +652,10 @@ function buildEditModal() {
             const val = e.target.value.trim();
             if (val) {
                 const lbl = val.toLowerCase().replace(/\s+/g, '-');
-                if (!editModalLabels.includes(lbl)) {
-                    editModalLabels.push(lbl);
-                    refreshEditLabelChips();
-                }
+                const board = activeBoard();
+                if (!board.globalLabels) board.globalLabels = [];
+                if (!board.globalLabels.includes(lbl)) { board.globalLabels.push(lbl); saveState(state); }
+                if (!editModalLabels.includes(lbl)) { editModalLabels.push(lbl); refreshEditLabelChips(); }
                 e.target.value = '';
             }
         }
@@ -527,6 +666,13 @@ function buildEditModal() {
 function refreshEditLabelChips() {
     renderLabelChips(editModalLabels, document.getElementById('editLabelChips'), lbl => {
         editModalLabels = editModalLabels.filter(x => x !== lbl);
+        refreshEditLabelChips();
+        rebuildLabelDropdowns();
+    });
+    buildLabelDropdown('editLabelSelect', editModalLabels, lbl => {
+        editModalLabels = editModalLabels.includes(lbl)
+            ? editModalLabels.filter(x => x !== lbl)
+            : [...editModalLabels, lbl];
         refreshEditLabelChips();
     });
 }
@@ -627,7 +773,7 @@ function renderIssues() {
 
         const card = document.createElement('div');
         card.className = `issue-card prio-${issue.priority}`;
-        card.draggable = false; // SortableJS handles drag
+        card.draggable = false;
         card.dataset.id = issue.id;
         card.style.borderLeftColor = color;
         card.style.background = `rgba(${rgb},0.06)`;
@@ -657,14 +803,12 @@ function renderIssues() {
         header.append(meta, actions);
         card.appendChild(header);
 
-        // Labels row
         if (issue.labels && issue.labels.length > 0) {
             const lrow = document.createElement('div'); lrow.className = 'issue-label-row';
             renderLabelChips(issue.labels, lrow, null);
             card.appendChild(lrow);
         }
 
-        // Due date
         if (issue.dueDate) {
             const due = document.createElement('div');
             due.className = 'issue-due';
@@ -705,6 +849,7 @@ function renderAll() {
     applyColumnColors();
     renderIssues();
     buildStatusOptions();
+    setTimeout(rebuildLabelDropdowns, 0);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -735,7 +880,8 @@ function addIssue() {
     titleInput.value = ''; descInput.value = ''; linksInput.value = '';
     priorityInput.value = '2'; colorInput.value = '#6c63ff'; dueDateInput.value = '';
     newIssueLabels = [];
-    renderLabelChips([], document.getElementById('newIssueLabelChips'), null);
+    renderNewIssueLabelChips();
+    rebuildLabelDropdowns();
     titleInput.focus();
     saveState(state); renderIssues(); rebuildLabelFilter();
 }
@@ -752,6 +898,7 @@ function deleteIssue(id) {
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     buildEditModal();
+    buildLabelManagerModal();
     renderAll();
 
     document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
@@ -764,10 +911,10 @@ document.addEventListener('DOMContentLoaded', () => {
         importState(e.target.files[0]);
         e.target.value = '';
     });
+    document.getElementById('labelManagerBtn').addEventListener('click', openLabelManager);
 
     document.getElementById('taskInput').addEventListener('keydown', e => { if (e.key === 'Enter') addIssue(); });
 
-    // Label input for new issues
     document.getElementById('labelInput').addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
@@ -776,7 +923,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Search & Filter
+    buildLabelDropdown('newIssueLabelSelect', newIssueLabels, v => {
+        newIssueLabels = newIssueLabels.includes(v) ? newIssueLabels.filter(x=>x!==v) : [...newIssueLabels, v];
+        renderNewIssueLabelChips();
+        rebuildLabelDropdowns();
+    });
+
     document.getElementById('searchInput').addEventListener('input', e => {
         filterSearch = e.target.value; renderIssues();
     });
@@ -794,7 +946,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderIssues();
     });
 
-    // Column color picker
     const colPicker = document.getElementById('colColorInput');
     colPicker.addEventListener('input', () => {
         if (!pendingColColorTarget) return;
@@ -803,7 +954,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     colPicker.addEventListener('change', () => { pendingColColorTarget = null; });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
         const overlay = document.getElementById('editModalOverlay');
         const modalOpen = overlay && !overlay.classList.contains('hidden');
@@ -815,19 +965,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveIssueEdits();
             return;
         }
-        // N → focus new issue title
-        if (e.key === 'n' && !isInput) {
-            e.preventDefault();
-            document.getElementById('taskInput').focus();
-        }
-        // / → focus search
-        if (e.key === '/' && !isInput) {
-            e.preventDefault();
-            document.getElementById('searchInput').focus();
-        }
-        // Escape → clear search focus
-        if (e.key === 'Escape' && isInput) {
-            document.activeElement.blur();
-        }
+        if (e.key === 'n' && !isInput) { e.preventDefault(); document.getElementById('taskInput').focus(); }
+        if (e.key === '/' && !isInput) { e.preventDefault(); document.getElementById('searchInput').focus(); }
+        if (e.key === 'Escape' && isInput) { document.activeElement.blur(); }
     });
 });
