@@ -4,7 +4,7 @@
 //  Abhängigkeiten: state.js, helpers.js, board.js, modals.js
 // ═══════════════════════════════════════════════════════════════════
 
-// ── Board DOM ──═══════════════════════════════════════════════════════
+// ── Board DOM ───────────────────────────────────────────────────────
 function buildBoardDOM() {
     const container = document.getElementById('boardContainer');
     container.innerHTML = '';
@@ -24,6 +24,7 @@ function buildBoardDOM() {
         dragHandle.title = 'Spalte verschieben';
 
         const h2 = document.createElement('h2');
+        h2.textContent = col.label;  // FIX: war vorher vergessen
         h2.title = 'Doppelklick zum Umbenennen';
         h2.style.cursor = 'pointer';
         h2.addEventListener('dblclick', () => renameColumn(col.id));
@@ -75,7 +76,6 @@ function buildBoardDOM() {
         container.appendChild(colEl);
     });
 
-    // „+ Spalte“ Button
     const addColBtn = document.createElement('button');
     addColBtn.className = 'add-col-btn';
     addColBtn.innerHTML = '&#43; Spalte';
@@ -87,12 +87,13 @@ function buildBoardDOM() {
 
 // ── SortableJS ────────────────────────────────────────────────────────
 function initSortable(container) {
-    // Issue-Drag zwischen Spalten
     document.querySelectorAll('.issue-list').forEach(list => {
         Sortable.create(list, {
             group:      'issues',
             animation:  150,
-            handle:     '.issue-card',
+            // FIX: handle auf .issue-header statt .issue-card
+            // .issue-card hatte stopPropagation auf Buttons — das blockierte den Drag
+            handle:     '.issue-header',
             ghostClass: 'sortable-ghost',
             dragClass:  'sortable-drag',
             onEnd(evt) {
@@ -102,7 +103,6 @@ function initSortable(container) {
                 const issue = board.issues.find(i => i.id === id);
                 if (!issue) return;
                 issue.status = toCol;
-                // sortOrder aller Karten neu berechnen
                 document.querySelectorAll('.issue-list').forEach(l => {
                     [...l.querySelectorAll('.issue-card')].forEach((card, idx) => {
                         const iss = board.issues.find(i => i.id === card.dataset.id);
@@ -116,7 +116,6 @@ function initSortable(container) {
         });
     });
 
-    // Spalten-Drag
     Sortable.create(container, {
         animation:  150,
         handle:     '.col-drag-handle',
@@ -195,7 +194,6 @@ function renderIssues() {
         card.style.borderLeftColor = color;
         card.style.background = `rgba(${rgb},0.06)`;
 
-        // Header
         const header  = document.createElement('div');
         header.className = 'issue-header';
         const meta    = document.createElement('div');
@@ -210,7 +208,6 @@ function renderIssues() {
         titleEl.textContent = issue.title;
         meta.append(idBadge, titleEl);
 
-        // Actions
         const actions = document.createElement('div');
         actions.className = 'issue-actions';
         const editBtn = document.createElement('button');
@@ -229,7 +226,6 @@ function renderIssues() {
         header.append(meta, actions);
         card.appendChild(header);
 
-        // Labels
         if (issue.labels && issue.labels.length > 0) {
             const lrow = document.createElement('div');
             lrow.className = 'issue-label-row';
@@ -237,7 +233,6 @@ function renderIssues() {
             card.appendChild(lrow);
         }
 
-        // Fälligkeitsdatum
         if (issue.dueDate) {
             const due = document.createElement('div');
             due.className = 'issue-due';
@@ -247,7 +242,6 @@ function renderIssues() {
             card.appendChild(due);
         }
 
-        // Beschreibung
         if (issue.description) {
             const desc = document.createElement('p');
             desc.className = 'issue-description';
@@ -255,7 +249,6 @@ function renderIssues() {
             card.appendChild(desc);
         }
 
-        // Links
         if (issue.links && issue.links.length > 0) {
             const lc = document.createElement('div');
             lc.className = 'issue-links';
