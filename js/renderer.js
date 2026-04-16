@@ -5,6 +5,8 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Board DOM ───────────────────────────────────────────────────────
+// Baut nur DOM-Struktur. initSortable wird in renderAll() NACH
+// renderIssues() aufgerufen, damit die Karten beim Init bereits im DOM sind.
 function buildBoardDOM() {
     const container = document.getElementById('boardContainer');
     container.innerHTML = '';
@@ -81,21 +83,23 @@ function buildBoardDOM() {
     addColBtn.innerHTML = '&#43; Spalte';
     addColBtn.addEventListener('click', addColumn);
     container.appendChild(addColBtn);
-
-    initSortable(container);
+    // KEIN initSortable() hier — wird nach renderIssues() in renderAll() aufgerufen
 }
 
 // ── SortableJS ────────────────────────────────────────────────────────
 function initSortable(container) {
     document.querySelectorAll('.issue-list').forEach(list => {
         Sortable.create(list, {
-            group:             'issues',
-            animation:         120,
-            swapThreshold:     0.5,   // Snap ab Kartenmitte — fühlt sich sofort an
-            fallbackTolerance: 3,     // Drag startet nach 3px Mausbewegung
-            delay:             0,     // Kein künstlicher Delay
-            ghostClass:        'sortable-ghost',
-            dragClass:         'sortable-drag',
+            group:                'issues',
+            animation:            120,
+            swapThreshold:        0.5,
+            fallbackTolerance:    3,
+            delay:                0,
+            // Kritisch: Dropzone ist 10px um den Container aktiv —
+            // verhindert das "kein Snap" Problem bei leeren / kleinen Listen
+            emptyInsertThreshold: 10,
+            ghostClass:           'sortable-ghost',
+            dragClass:            'sortable-drag',
             onEnd(evt) {
                 const id    = evt.item.dataset.id;
                 const toCol = evt.to.dataset.colId;
@@ -275,9 +279,11 @@ function renderIssues() {
 // ── renderAll ─────────────────────────────────────────────────────────
 function renderAll() {
     renderBoardSelect();
-    buildBoardDOM();
+    buildBoardDOM();       // DOM-Struktur ohne Karten
     applyColumnColors();
-    renderIssues();
+    renderIssues();        // Karten ins DOM einfügen
     buildStatusOptions();
     setTimeout(rebuildLabelDropdowns, 0);
+    // initSortable NACH renderIssues — Karten sind jetzt im DOM
+    initSortable(document.getElementById('boardContainer'));
 }

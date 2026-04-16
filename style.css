@@ -221,13 +221,16 @@ body.modal-open { overflow: hidden; }
 .col-title-wrap { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .col-drag-handle { color: var(--text-faint); cursor: grab; font-size: 0.85rem; letter-spacing: -2px; user-select: none; padding: 0 2px; line-height: 1; }
 .col-drag-handle:active { cursor: grabbing; }
-/* FIX: text-transform: uppercase entfernt — Groß-/Kleinschreibung bleibt erhalten */
 .column-header h2 { color: var(--text); font-size: 0.92rem; font-weight: 700; letter-spacing: 0.03em; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .col-count { background: var(--border); color: var(--text-muted); font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; min-width: 20px; text-align: center; }
 .col-header-btns { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .col-rename-btn, .col-color-btn, .col-delete-btn { background: none; border: none; color: var(--text-faint); font-size: 0.85rem; padding: 2px 5px; border-radius: 4px; cursor: pointer; line-height: 1; transition: background 0.15s, color 0.15s; }
 .col-rename-btn:hover, .col-color-btn:hover { background: var(--btn-sec); color: var(--text); }
 .col-delete-btn:hover { background: var(--del-hover); color: #e74c3c; }
+
+/* ── Issue List (Dropzone) ───────────────────────────────────────── */
+/* min-height garantiert dass SortableJS immer eine Dropzone hat */
+.issue-list { min-height: 60px; }
 
 /* ── Empty State ────────────────────────────────────────────────── */
 .col-empty {
@@ -244,7 +247,6 @@ body.modal-open { overflow: hidden; }
 .sortable-drag  { opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
 
 /* ── Issue Card ─────────────────────────────────────────────────── */
-/* FIX: kein handle mehr — ganze Karte ist ziehbar (außer Buttons mit stopPropagation) */
 .issue-card { margin: 10px 0; padding: 12px 14px; border-radius: 8px; border-left: 5px solid #6c63ff; cursor: grab; box-shadow: 0 2px 6px var(--shadow); user-select: none; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.18s, transform 0.12s, background 0.25s; }
 .issue-card:active { cursor: grabbing; }
 .issue-card:hover  { box-shadow: 0 4px 14px var(--shadow-md); transform: translateY(-1px); }
