@@ -5,7 +5,6 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Custom Confirm (ersetzt confirm()) ───────────────────────────
-// Gibt Promise<boolean> zurück — true = bestätigt, false = abgebrochen
 function showConfirm(message, confirmLabel = 'OK', dangerMode = false) {
     return new Promise(resolve => {
         const existing = document.getElementById('confirmOverlay');
@@ -39,7 +38,6 @@ function showConfirm(message, confirmLabel = 'OK', dangerMode = false) {
         overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
         document.getElementById('confirmOkBtn').focus();
 
-        // Keyboard: Enter = bestätigen, Escape = abbrechen
         overlay.addEventListener('keydown', e => {
             if (e.key === 'Escape') cleanup(false);
             if (e.key === 'Enter')  cleanup(true);
@@ -48,7 +46,6 @@ function showConfirm(message, confirmLabel = 'OK', dangerMode = false) {
 }
 
 // ── Custom Prompt (ersetzt prompt()) ─────────────────────────────
-// Gibt Promise<string|null> zurück — null = abgebrochen
 function showPrompt(message, defaultValue = '', confirmLabel = 'OK') {
     return new Promise(resolve => {
         const existing = document.getElementById('promptOverlay');
@@ -156,6 +153,29 @@ function buildEditModal() {
                 </div>
                 <label class="modal-label" for="editStatusInput">Status</label>
                 <select id="editStatusInput"></select>
+
+                <!-- ── Wiederkehrend ────────────────────────────── -->
+                <div class="recurring-section">
+                    <label class="modal-label" for="editRecurringInterval">🔄 Wiederkehrend</label>
+                    <select id="editRecurringInterval">
+                        <option value="none">Nicht wiederkehrend</option>
+                        <option value="daily">Täglich</option>
+                        <option value="weekly">Wöchentlich</option>
+                    </select>
+                    <div id="recurringWeekdayRow" class="recurring-extra hidden">
+                        <label class="modal-label" for="editRecurringWeekday">Wochentag</label>
+                        <select id="editRecurringWeekday">
+                            <option value="0">Montag</option>
+                            <option value="1">Dienstag</option>
+                            <option value="2">Mittwoch</option>
+                            <option value="3">Donnerstag</option>
+                            <option value="4">Freitag</option>
+                            <option value="5">Samstag</option>
+                            <option value="6">Sonntag</option>
+                        </select>
+                    </div>
+                    <p id="recurringHint" class="recurring-hint hidden"></p>
+                </div>
             </div>
             <div class="modal-actions">
                 <button type="button" class="secondary-btn" id="cancelEditBtn">Abbrechen</button>
@@ -168,6 +188,10 @@ function buildEditModal() {
     document.getElementById('closeEditModalBtn').addEventListener('click', closeEditModal);
     document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
     document.getElementById('saveEditBtn').addEventListener('click', saveIssueEdits);
+
+    // Recurring: Wochentag-Row ein-/ausblenden
+    document.getElementById('editRecurringInterval').addEventListener('change', updateRecurringUI);
+
     document.getElementById('editLabelInput').addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
@@ -182,6 +206,27 @@ function buildEditModal() {
         }
     });
     buildStatusOptions();
+}
+
+function updateRecurringUI() {
+    const interval = document.getElementById('editRecurringInterval').value;
+    const weekdayRow = document.getElementById('recurringWeekdayRow');
+    const hint       = document.getElementById('recurringHint');
+
+    weekdayRow.classList.toggle('hidden', interval !== 'weekly');
+
+    if (interval === 'none') {
+        hint.classList.add('hidden');
+    } else {
+        hint.classList.remove('hidden');
+        if (interval === 'daily') {
+            hint.textContent = '↩ Issue wird täglich beim Öffnen der App nach Open verschoben.';
+        } else {
+            const days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+            const day  = days[document.getElementById('editRecurringWeekday').value] || 'Montag';
+            hint.textContent = `↩ Issue wird jeden ${day} beim Öffnen der App nach Open verschoben.`;
+        }
+    }
 }
 
 function refreshEditLabelChips() {
@@ -212,6 +257,13 @@ function openEditModal(id) {
     document.getElementById('editColorInput').value       = issue.color || '#6c63ff';
     document.getElementById('editDueDateInput').value     = issue.dueDate || '';
     document.getElementById('editLabelInput').value       = '';
+
+    // Recurring-Felder befüllen
+    const rec = issue.recurring || { interval: 'none', weekday: 0, lastReset: null };
+    document.getElementById('editRecurringInterval').value = rec.interval || 'none';
+    document.getElementById('editRecurringWeekday').value  = rec.weekday ?? 0;
+    updateRecurringUI();
+
     refreshEditLabelChips();
     const overlay = document.getElementById('editModalOverlay');
     overlay.classList.remove('hidden');
@@ -242,10 +294,24 @@ function saveIssueEdits() {
     issue.color       = document.getElementById('editColorInput').value;
     issue.dueDate     = document.getElementById('editDueDateInput').value || null;
     issue.labels      = [...editModalLabels];
+
+    // Recurring speichern
+    const interval = document.getElementById('editRecurringInterval').value;
+    if (interval === 'none') {
+        issue.recurring = null;
+    } else {
+        issue.recurring = {
+            interval,
+            weekday:   parseInt(document.getElementById('editRecurringWeekday').value, 10),
+            lastReset: issue.recurring?.lastReset || null
+        };
+    }
+
     saveState(state);
     closeEditModal();
     renderIssues();
     rebuildLabelFilter();
+    if (interval !== 'none') showToast('🔄 Wiederkehrendes Issue gespeichert');
 }
 
 // ── Label Manager Modal ─────────────────────────────────────────────
