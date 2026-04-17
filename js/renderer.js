@@ -5,8 +5,6 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Board DOM ───────────────────────────────────────────────────────
-// Baut nur DOM-Struktur. initSortable wird in renderAll() NACH
-// renderIssues() aufgerufen, damit die Karten beim Init bereits im DOM sind.
 function buildBoardDOM() {
     const container = document.getElementById('boardContainer');
     container.innerHTML = '';
@@ -83,21 +81,28 @@ function buildBoardDOM() {
     addColBtn.innerHTML = '&#43; Spalte';
     addColBtn.addEventListener('click', addColumn);
     container.appendChild(addColBtn);
-    // KEIN initSortable() hier — wird nach renderIssues() in renderAll() aufgerufen
 }
 
 // ── SortableJS ────────────────────────────────────────────────────────
+// Instanzen werden hier gespeichert, damit sie vor jedem Re-Init
+// sauber zerstört werden können — verhindert den Snap-Bug bei
+// mehrfach gestackten Event-Handlern.
+const _sortableInstances = [];
+
 function initSortable(container) {
+    // Alle alten Instanzen zerstören bevor neue erstellt werden
+    while (_sortableInstances.length) {
+        try { _sortableInstances.pop().destroy(); } catch(e) {}
+    }
+
     document.querySelectorAll('.issue-list').forEach(list => {
-        Sortable.create(list, {
+        const instance = Sortable.create(list, {
             group:                'issues',
             animation:            120,
-            swapThreshold:        0.5,
+            swapThreshold:        0.65,
             fallbackTolerance:    3,
             delay:                0,
-            // Kritisch: Dropzone ist 10px um den Container aktiv —
-            // verhindert das "kein Snap" Problem bei leeren / kleinen Listen
-            emptyInsertThreshold: 10,
+            emptyInsertThreshold: 20,
             ghostClass:           'sortable-ghost',
             dragClass:            'sortable-drag',
             onEnd(evt) {
@@ -118,9 +123,10 @@ function initSortable(container) {
                 updateEmptyStates();
             }
         });
+        _sortableInstances.push(instance);
     });
 
-    Sortable.create(container, {
+    const colInstance = Sortable.create(container, {
         animation:  150,
         handle:     '.col-drag-handle',
         filter:     '.add-col-btn',
@@ -135,6 +141,7 @@ function initSortable(container) {
             buildStatusOptions();
         }
     });
+    _sortableInstances.push(colInstance);
 }
 
 // ── Issue Rendering ──────────────────────────────────────────────────
@@ -279,11 +286,10 @@ function renderIssues() {
 // ── renderAll ─────────────────────────────────────────────────────────
 function renderAll() {
     renderBoardSelect();
-    buildBoardDOM();       // DOM-Struktur ohne Karten
+    buildBoardDOM();
     applyColumnColors();
-    renderIssues();        // Karten ins DOM einfügen
+    renderIssues();
     buildStatusOptions();
     setTimeout(rebuildLabelDropdowns, 0);
-    // initSortable NACH renderIssues — Karten sind jetzt im DOM
     initSortable(document.getElementById('boardContainer'));
 }
