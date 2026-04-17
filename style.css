@@ -216,7 +216,19 @@ body.modal-open { overflow: hidden; }
 .add-col-btn:hover { background: var(--btn-sec-h); border-color: var(--focus-c); color: var(--text); }
 
 /* ── Column ─────────────────────────────────────────────────────── */
-.column { flex: 1; min-width: 260px; background: var(--col-bg); border-radius: 10px; min-height: 70vh; padding: 12px; transition: background 0.25s, border-top 0.25s; }
+/*  display:flex + flex-direction:column erlaubt .issue-list flex:1
+    → Dropzone füllt die gesamte Spaltenhöhe, nicht nur den Karten-Bereich */
+.column {
+    flex: 1;
+    min-width: 260px;
+    background: var(--col-bg);
+    border-radius: 10px;
+    min-height: 70vh;
+    padding: 12px;
+    transition: background 0.25s, border-top 0.25s;
+    display: flex;
+    flex-direction: column;
+}
 .column-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--col-border); padding-bottom: 10px; margin-bottom: 8px; }
 .col-title-wrap { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .col-drag-handle { color: var(--text-faint); cursor: grab; font-size: 0.85rem; letter-spacing: -2px; user-select: none; padding: 0 2px; line-height: 1; }
@@ -229,8 +241,13 @@ body.modal-open { overflow: hidden; }
 .col-delete-btn:hover { background: var(--del-hover); color: #e74c3c; }
 
 /* ── Issue List (Dropzone) ───────────────────────────────────────── */
-/* min-height garantiert dass SortableJS immer eine Dropzone hat */
-.issue-list { min-height: 60px; }
+/* flex:1 → füllt die gesamte verbleibende Spaltenhöhe.
+   SortableJS registriert Drops jetzt überall in der Spalte, nicht nur
+   im Bereich der vorhandenen Karten. */
+.issue-list {
+    flex: 1;
+    min-height: 60px;
+}
 
 /* ── Empty State ────────────────────────────────────────────────── */
 .col-empty {
