@@ -4,7 +4,7 @@
 //  Abhängigkeiten: state.js, helpers.js, board.js, modals.js
 // ═══════════════════════════════════════════════════════════════════
 
-// ── Board DOM ───────────────────────────────────────────────────────
+// ── Board DOM ────────────────────────────────────────────────────────
 function buildBoardDOM() {
     const container = document.getElementById('boardContainer');
     container.innerHTML = '';
@@ -46,7 +46,7 @@ function buildBoardDOM() {
         colorBtn.className = 'col-color-btn';
         colorBtn.innerHTML = '&#127912;';
         colorBtn.title = 'Spaltenfarbe';
-        colorBtn.addEventListener('click', () => openColColorPicker(col.id));
+        colorBtn.addEventListener('click', (e) => openColColorPicker(col.id, e.currentTarget));
 
         const delColBtn = document.createElement('button');
         delColBtn.className = 'col-delete-btn';
@@ -83,14 +83,10 @@ function buildBoardDOM() {
     container.appendChild(addColBtn);
 }
 
-// ── SortableJS ────────────────────────────────────────────────────────
-// Instanzen werden hier gespeichert, damit sie vor jedem Re-Init
-// sauber zerstört werden können — verhindert den Snap-Bug bei
-// mehrfach gestackten Event-Handlern.
+// ── SortableJS ─────────────────────────────────────────────────────────
 const _sortableInstances = [];
 
 function initSortable(container) {
-    // Alle alten Instanzen zerstören bevor neue erstellt werden
     while (_sortableInstances.length) {
         try { _sortableInstances.pop().destroy(); } catch(e) {}
     }
@@ -144,7 +140,7 @@ function initSortable(container) {
     _sortableInstances.push(colInstance);
 }
 
-// ── Issue Rendering ──────────────────────────────────────────────────
+// ── Issue Rendering ───────────────────────────────────────────────────
 let filterSearch   = '';
 let filterPriority = '';
 let filterLabel    = '';
@@ -283,7 +279,7 @@ function renderIssues() {
     rebuildLabelFilter();
 }
 
-// ── renderAll ─────────────────────────────────────────────────────────
+// ── renderAll ────────────────────────────────────────────────────────────
 function renderAll() {
     renderBoardSelect();
     buildBoardDOM();
