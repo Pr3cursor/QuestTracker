@@ -104,7 +104,7 @@ async function deleteColumn(colId) {
         // Issues vorhanden — Ziel-Spalte per Prompt abfragen
         const opts = remaining.map((c, i) => `${i + 1}: ${c.label}`).join('\n');
         const answer = await showPrompt(
-            `Die Spalte „${col.label}“ enthält ${affected.length} Issue(s).\n\nWohin verschieben?\n${opts}\n\n(Nummer eingeben, oder leer lassen zum Löschen)`,
+            `Die Spalte „${col.label}" enthält ${affected.length} Issue(s).\n\nWohin verschieben?\n${opts}\n\n(Nummer eingeben, oder leer lassen zum Löschen)`,
             '1',
             'Bestätigen'
         );
@@ -116,7 +116,7 @@ async function deleteColumn(colId) {
             board.issues = board.issues.filter(i => i.status !== colId);
         }
     } else {
-        const confirmed = await showConfirm(`Spalte „${col.label}“ löschen?`, 'Löschen', true);
+        const confirmed = await showConfirm(`Spalte „${col.label}" löschen?`, 'Löschen', true);
         if (!confirmed) return;
     }
 
@@ -126,11 +126,19 @@ async function deleteColumn(colId) {
     showToast(`🗑️ Spalte "${col.label}" gelöscht`);
 }
 
-function openColColorPicker(colId) {
+function openColColorPicker(colId, triggerEl) {
     pendingColColorTarget = colId;
-    const col = activeBoard().columns.find(c => c.id === colId);
+    const col    = activeBoard().columns.find(c => c.id === colId);
     const picker = document.getElementById('colColorInput');
     picker.value = (col && col.color) || '#6c63ff';
+
+    // Picker direkt am auslösenden Button positionieren
+    if (triggerEl) {
+        const rect = triggerEl.getBoundingClientRect();
+        picker.style.left = rect.left + 'px';
+        picker.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+    }
+
     picker.click();
 }
 
