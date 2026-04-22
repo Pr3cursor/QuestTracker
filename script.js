@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     buildEditModal();
     buildLabelManagerModal();
+    checkRecurringIssues(); // Wiederkehrende Issues vor dem ersten Render prüfen
     renderAll();
 
     // ── Board
@@ -21,7 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Export / Import
     document.getElementById('exportBtn').addEventListener('click', exportState);
     document.getElementById('importFile').addEventListener('change', e => {
-        importState(e.target.files[0], renderAll);
+        importState(e.target.files[0], () => {
+            checkRecurringIssues(); // Nach Import ebenfalls prüfen
+            renderAll();
+        });
         e.target.value = '';
     });
 
